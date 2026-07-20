@@ -1913,6 +1913,7 @@ function render(){
   if(SCREEN==='fiche'){ navEl.classList.add('hidden'); return renderFiche(); }
   if(SCREEN==='marge'){ navEl.classList.add('hidden'); return renderMarge(); }
   if(SCREEN==='support'){ navEl.classList.add('hidden'); return renderSupport(); }
+  if(SCREEN==='journal'){ navEl.classList.add('hidden'); return renderJournal(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
     if(useFB && !AUTH_USER){ navEl.classList.add('hidden'); return renderTeamAuth(); }
@@ -2418,6 +2419,136 @@ function validerNouveauMdp(){
   });
 }
 
+/* ====================== JOURNAL D'ADMINISTRATION ======================
+   La reponse a « qu'est-ce que j'ai fait le 12 ? ». Chaque operation
+   passee par le serveur y figure, avec l'heure et le client concerne.
+   Ce journal est ecrit par le serveur seul : l'application ne peut ni
+   l'effacer ni le modifier — c'est ce qui lui donne sa valeur. */
+let JOU=null, JOU_ETAT='vide', JOU_ERR='', JOU_ACTES=false;
+
+function journalOuvrir(){ SCREEN='journal'; JOU=null; JOU_ETAT='chargement'; JOU_ERR=''; render(); toTop(); journalCharger(); }
+function journalRetour(){ SCREEN='parc'; render(); toTop(); }
+function journalFiltre(v){ JOU_ACTES=v; renderJournal(); }
+
+function journalCharger(){
+  JOU_ETAT='chargement'; JOU_ERR='';
+  if(SCREEN==='journal') renderJournal();
+  adminApiCall('journal',{}).then(function(r){
+    JOU=(r&&r.journal)||[]; JOU_ETAT='pret';
+    if(SCREEN==='journal') renderJournal();
+  }).catch(function(e){
+    JOU_ERR=(e&&e.message)?e.message:"Service indisponible."; JOU_ETAT='erreur';
+    if(SCREEN==='journal') renderJournal();
+  });
+}
+
+/* Traduire l'operation technique en phrase lisible. */
+function journalPhrase(l){
+  const d = l.detail || {};
+  switch(l.action){
+    case 'parc':          return "Consultation du parc" + (d.nb!=null?(" ("+d.nb+" clients)"):"");
+    case 'marge':         return "Consultation de la marge";
+    case 'fiche':         return "Consultation d'une fiche";
+    case 'comptes':       return "Consultation des comptes";
+    case 'creerClient':   return "Création du client « "+(d.nom||'?')+" » en "+(d.formule==='premium'?'Premium':'Basique');
+    case 'basculerActif': return d.apres ? "Réactivation du client" : "Suspension du client";
+    case 'codePatron':    return "Nouveau code patron généré";
+    case 'basculerCompte':return (d.actif?"Compte réactivé":"Compte désactivé")+(d.compte?(" — "+d.compte):"");
+    case 'motDePasse':    return "Lien de mot de passe envoyé"+(d.email?(" à "+d.email):"");
+    case 'fantome':       return d.fantome==='sortie' ? "Sortie du mode fantôme" : "Entrée en mode fantôme";
+    case 'observer':      return "Aperçu en lecture seule";
+    default:              return l.action||'—';
+  }
+}
+function journalGrave(l){
+  return ['creerClient','basculerActif','codePatron','basculerCompte','motDePasse','fantome'].indexOf(l.action)>=0;
+}
+function journalHeure(iso){
+  try{ return new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }catch(_){ return ''; }
+}
+function journalJour(iso){
+  try{
+    const d=new Date(iso), a=new Date();
+    const meme=d.toDateString()===a.toDateString();
+    if(meme) return "Aujourd'hui";
+    const h=new Date(a.getTime()-86400000);
+    if(d.toDateString()===h.toDateString()) return "Hier";
+    return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  }catch(_){ return ''; }
+}
+
+function renderJournal(){
+  let corps='';
+
+  if(JOU_ETAT==='chargement'){
+    corps = `<div class="card"><p class="note" style="text-align:center">Lecture du journal…</p></div>`;
+  }
+  else if(JOU_ETAT==='erreur'){
+    corps = `<div class="card" style="border-color:var(--warn)">
+      <p class="note"><b>Journal indisponible.</b></p>
+      <p class="note" style="margin-top:6px">${esc(JOU_ERR)}</p>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="journalCharger()">Réessayer</button>
+    </div>`;
+  }
+  else {
+    const lignes = JOU||[];
+    const auj = lignes.filter(function(l){
+      try{ return new Date(l.quand).toDateString()===new Date().toDateString(); }catch(_){ return false; }
+    }).length;
+    const actes = lignes.filter(journalGrave).length;
+
+    /* regroupement par journee, dans l'ordre recu (du plus recent) */
+    const visibles = JOU_ACTES ? lignes.filter(journalGrave) : lignes;
+    const jours=[]; const parJour={};
+    visibles.forEach(function(l){
+      const j=journalJour(l.quand);
+      if(!parJour[j]){ parJour[j]=[]; jours.push(j); }
+      parJour[j].push(l);
+    });
+
+    corps = `<div class="card">
+      <div class="kpis" style="margin-bottom:8px">
+        <div class="kpi acc"><div class="big">${auj}</div><div class="lbl">Aujourd'hui</div></div>
+        <div class="kpi"><div class="big">${actes}</div><div class="lbl">Actions</div></div>
+        <div class="kpi"><div class="big">${lignes.length}</div><div class="lbl">Au total</div></div>
+      </div>
+      <p class="note">Les <b>actions</b> sont celles qui ont modifié quelque chose. Le reste n'est que consultation.</p>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn ${JOU_ACTES?'ghost':'primary'}" style="flex:1" onclick="journalFiltre(false)">Tout</button>
+        <button class="btn ${JOU_ACTES?'primary':'ghost'}" style="flex:1" onclick="journalFiltre(true)">Actions seules</button>
+      </div>
+    </div>
+
+    ${jours.length ? jours.map(function(j){
+      return `<div class="card">
+        <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${esc(j)}</h2></div>
+        ${parJour[j].map(function(l){
+          const fort=journalGrave(l);
+          return `<div class="task-row" style="align-items:flex-start">
+            <span class="note" style="width:44px;flex:0 0 44px;font-size:11px;font-family:'Sora'">${journalHeure(l.quand)}</span>
+            <div style="flex:1;min-width:0">
+              <b style="font-size:12.5px;${fort?'':'font-weight:600;opacity:.75'}">${esc(journalPhrase(l))}</b>
+              ${l.cible?`<div class="tag" style="margin-top:2px">${esc(l.cible)}</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('') : `<div class="card"><p class="note">Le journal est vide.</p></div>`}`;
+  }
+
+  app.innerHTML = `<div class="center-wrap" style="justify-content:flex-start;max-width:560px">
+    <button class="backbtn" style="align-self:flex-start" onclick="journalRetour()"><span class="ar">←</span> Parc client</button>
+    <div style="text-align:center;margin:8px 0 16px">
+      <h1 style="font-size:22px">Journal d'administration</h1>
+      <p class="note" style="margin-top:6px">Les 200 dernières opérations</p>
+    </div>
+    ${corps}
+    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="journalCharger()">Rafraîchir</button>
+    <p class="note" style="text-align:center;margin-top:14px;font-size:11px">
+      Écrit par le serveur seul. Ni l'application ni toi ne pouvez le modifier.</p>
+  </div>`;
+}
+
 /* ====================== SUPPORT ======================
    Les gestes de depannage au telephone : redonner un code patron
    perdu, remettre en route un compte desactive, envoyer un lien de
@@ -2706,7 +2837,10 @@ function renderParc(){
       <p class="note" style="margin-top:6px">Tous les artisans Taloche · lecture via le serveur</p>
     </div>
     <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="parcNouveau()">+ Nouveau client</button>
-    <button class="btn ghost" style="width:100%;margin-bottom:12px" onclick="margeOuvrir()">Ma marge</button>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn ghost" style="flex:1" onclick="margeOuvrir()">Ma marge</button>
+      <button class="btn ghost" style="flex:1" onclick="journalOuvrir()">Journal</button>
+    </div>
     ${corps}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
     <p class="note" style="text-align:center;margin-top:14px;font-size:11px">Chaque consultation est journalisée côté serveur.</p>
@@ -2715,7 +2849,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v243 · 20/07";
+const APP_VERSION="v244 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>

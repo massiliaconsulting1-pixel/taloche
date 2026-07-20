@@ -1190,7 +1190,15 @@ const BS = {
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
         return BS._sb.lireMembre(m[1]).then(function(mem){
           const vu = (mem && mem.seen) || {}; vu[m[2]] = valeur;
-          return c.from('utilisateurs').update({ vu: vu }).eq('id', m[1]);
+          /* .select() est indispensable : sans lui, une ligne refusee par
+             les regles ne renvoie AUCUNE erreur — l'echec est invisible. */
+          return c.from('utilisateurs').update({ vu: vu }).eq('id', m[1]).select('id')
+            .then(function(r){
+              if(r.error){ VU_DIAG={ok:false, type:m[2], msg:r.error.message||'erreur', quand:Date.now()}; }
+              else if(!r.data || !r.data.length){ VU_DIAG={ok:false, type:m[2], msg:"aucune ligne modifiée (refus des règles)", quand:Date.now()}; }
+              else { VU_DIAG={ok:true, type:m[2], msg:'enregistré', quand:Date.now()}; }
+              return r;
+            });
         });
       }
       /* team/<uid> : une fiche complete */
@@ -1358,6 +1366,7 @@ let MSG_SEEN={};        // {chantierId:ts} messages client vus
 let ETAPE_SEEN={};      // {chantierId:idxEtapeVue} avancement vu
 let SIGN_SEEN={};       // {pid:true} devis signés vus par le boss
 let RELANCE_SEEN={};    // {pid:true} relances de devis déjà vues
+let VU_DIAG=null;       // trace du dernier enregistrement de « vu »
 let CHAT={};            // messagerie interne {group:{}, dm:{pairKey:{}}}
 let CHAT_OPEN=null;     // 'group' | 'ai' | 'dm:<uid>' | null
 let CHAT_SEEN={};       // {convKey:ts} (local, par appareil)
@@ -2951,7 +2960,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v249 · 20/07";
+const APP_VERSION="v250 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -3013,6 +3022,7 @@ function renderDev(){
       <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">L'atelier</h2></div>
       <p class="note">Version <b>${APP_VERSION}</b> · base <b>${BACKEND==='supabase'?'Supabase (Paris)':'Firebase'}</b> · une seule application pour tous les clients.</p>
       <p class="note" style="margin-top:6px;font-size:11.5px">Les chiffres d'un artisan se lisent dans sa <b>fiche</b>, et ses réglages s'ouvrent depuis son application, en mode patron.</p>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="diagNotifs()">Contrôler les notifications</button>
     </div>
 
     <div class="card" style="border-color:var(--acc)">
@@ -4563,6 +4573,44 @@ function fabFor(){
   if(TAB==='equipe' && EQ_SUB==='vehicules' && isChef()) return `<button class="fab" onclick="newVehicule()" aria-label="Nouveau véhicule">${plus}</button>`;
   return '';
 }
+/* Panneau de controle des notifications. Il repond a trois questions :
+   qu'est-ce qui est compte, qu'est-ce qui a ete marque « vu », et le
+   dernier enregistrement vers la base est-il passe. */
+function diagNotifs(){
+  const nb=function(o){ try{ return Object.keys(o||{}).length; }catch(_){ return 0; } };
+  const d=VU_DIAG;
+  const lignes=[
+    ['Chantiers avancés', totalAdvanced(), 'étapes vues', nb(ETAPE_SEEN)],
+    ['Devis signés',      unseenSigned(),  'signatures vues', nb(SIGN_SEEN)],
+    ['Relances',          relancesNonVues()+' / '+totalRelances(), 'relances vues', nb(RELANCE_SEEN)],
+    ['Messages client',   totalUnreadMsgs(), 'chantiers lus', nb(MSG_SEEN)],
+    ['Discussions',       totalChatUnread(), 'conversations lues', nb(CHAT_SEEN)],
+    ['Véhicules',         totalVehUnseen(), 'incidents vus', nb(VEH_SEEN)]
+  ];
+  openModal(`<div class="grabber"></div>
+    <h2 style="margin-bottom:4px">Notifications — contrôle</h2>
+    <p class="note" style="margin-bottom:12px">Identifiant : <b>${esc(String(myUid()).slice(0,8))}…</b> ·
+      enregistrement ${seenUid()?'<b style="color:var(--ok)">actif</b>':'<b style="color:var(--warn)">inactif</b>'}</p>
+    ${lignes.map(function(l){
+      return `<div class="task-row" style="align-items:flex-start">
+        <span style="flex:1"><b style="font-size:13px">${esc(l[0])}</b>
+          <div class="note" style="font-size:11px">${esc(l[2])} : ${l[3]}</div></span>
+        <b style="font-size:16px;font-family:'Sora'">${l[1]}</b>
+      </div>`;
+    }).join('')}
+    <div class="card" style="margin-top:12px;${d?(d.ok?'border-color:var(--ok)':'border-color:var(--warn)'):''}">
+      <p class="note" style="margin:0"><b>Dernier enregistrement</b></p>
+      <p class="note" style="margin-top:4px">${d?(esc(d.type)+' — '+esc(d.msg)):'aucun depuis l\'ouverture'}</p>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:12px" onclick="diagNotifsForcer()">Forcer l'enregistrement</button>
+    <button class="btn ghost" style="width:100%;margin-top:6px" onclick="closeModal()">Fermer</button>`);
+}
+function diagNotifsForcer(){
+  pushSeen('msg', MSG_SEEN); pushSeen('etape', ETAPE_SEEN); pushSeen('sign', SIGN_SEEN);
+  pushSeen('relance', RELANCE_SEEN); pushSeen('veh', VEH_SEEN); pushSeen('chat', CHAT_SEEN);
+  setTimeout(diagNotifs, 900);
+}
+
 function setTab(t){ TAB=t; CUR_CHANTIER=null; ARCH_VIEW=false; CLIENTS_VIEW=false; CHAT_OPEN=null; if(t==='dashboard'){ markSignedSeen(); markRelanceSeen(); } render(); toTop(); }
 function openChantier(id){ CUR_CHANTIER=id; CHTAB='apercu'; markMsgSeen(id); markEtapeSeen(id); render(); toTop(); }
 function closeChantier(){ CUR_CHANTIER=null; render(); toTop(); }
@@ -4580,7 +4628,18 @@ function seenUid(){
   try{ if(ME && ME._fantome) return null; }catch(_){ }
   return (useFB || BACKEND==='supabase') ? u : null;
 }
-function pushSeen(type,obj){ try{ const u=seenUid(); if(u) BS.ecrire('team/'+u+'/seen/'+type, obj); }catch(_){ } }
+function pushSeen(type,obj){
+  const u = seenUid();
+  if(!u){ VU_DIAG={ok:false, type:type, msg:"pas enregistré (session sans fiche)", quand:Date.now()}; return; }
+  try{
+    const p = BS.ecrire('team/'+u+'/seen/'+type, obj);
+    if(p && p.catch) p.catch(function(e){
+      VU_DIAG={ok:false, type:type, msg:(e&&e.message)||'échec', quand:Date.now()};
+    });
+  }catch(e){
+    VU_DIAG={ok:false, type:type, msg:(e&&e.message)||'échec', quand:Date.now()};
+  }
+}
 function loadSeenFromProfile(prof){ if(!prof||!prof.seen) return; const s=prof.seen;
   MSG_SEEN=mergeSeen(MSG_SEEN,s.msg); ETAPE_SEEN=mergeSeen(ETAPE_SEEN,s.etape); SIGN_SEEN=mergeSeen(SIGN_SEEN,s.sign,true);
   RELANCE_SEEN=mergeSeen(RELANCE_SEEN,s.relance,true); lsSet('relance_seen',RELANCE_SEEN); VEH_SEEN=mergeSeen(VEH_SEEN,s.veh); NOTES_SEEN=mergeSeen(NOTES_SEEN,s.notes); CHAT_SEEN=mergeSeen(CHAT_SEEN,s.chat);

@@ -1748,7 +1748,16 @@ function bootSupabase(){
      QU'UNE FOIS connecte — comme avec Firebase. */
   AUTH.surveiller(function(u){
     AUTH_USER = u || null; AUTH_READY = true;
-    if(u){ rechargerEquipe(); }
+    if(u){
+      /* Editeur : on demande d'abord au serveur si je suis dans
+         l'espace d'un client, sinon je serais renvoye vers l'ecran
+         « rejoindre une entreprise » a chaque rechargement. */
+      if(devAllowed(u)){
+        fantomeEtat().then(function(){ return rechargerEquipe(); }).then(function(){ render(); });
+      } else {
+        rechargerEquipe();
+      }
+    }
     else { ME = null; TEAM = {}; if(SCREEN==='team') SCREEN='entry'; }
     if(!BOOTED){ BOOTED = true; }
     render();
@@ -1881,7 +1890,6 @@ function render(){
   if(SCREEN==='parc'){ navEl.classList.add('hidden'); return renderParc(); }
   if(SCREEN==='fiche'){ navEl.classList.add('hidden'); return renderFiche(); }
   if(SCREEN==='marge'){ navEl.classList.add('hidden'); return renderMarge(); }
-  if(SCREEN==='observe'){ navEl.classList.add('hidden'); return renderObserver(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
     if(useFB && !AUTH_USER){ navEl.classList.add('hidden'); return renderTeamAuth(); }
@@ -2232,117 +2240,6 @@ function fantomeBandeau(){
   document.body.style.paddingTop = '32px';
 }
 
-/* ====================== MODE OBSERVATION ======================
-   Voir ce que le client a sous les yeux, sans rien pouvoir toucher.
-   Aucune donnee n'est lue par l'application : tout vient du serveur,
-   qui verifie d'abord que c'est bien moi et note le passage dans le
-   journal. Aucun bouton n'ecrit quoi que ce soit ici. */
-let OBS=null, OBS_ETAT='vide', OBS_ERR='', OBS_SLUG='';
-
-function obsOuvrir(slug){
-  OBS_SLUG=slug; OBS=null; OBS_ETAT='chargement'; OBS_ERR='';
-  SCREEN='observe'; render(); toTop(); obsCharger();
-}
-function obsRetour(){ SCREEN='fiche'; render(); toTop(); }
-
-function obsCharger(){
-  OBS_ETAT='chargement'; OBS_ERR='';
-  if(SCREEN==='observe') renderObserver();
-  adminApiCall('observer',{ slug:OBS_SLUG }).then(function(r){
-    OBS = (r && r.observation) || null; OBS_ETAT='pret';
-    if(SCREEN==='observe') renderObserver();
-  }).catch(function(e){
-    OBS_ERR = (e && e.message) ? e.message : "Service indisponible.";
-    OBS_ETAT='erreur';
-    if(SCREEN==='observe') renderObserver();
-  });
-}
-
-function obsRole(r){
-  return r==='boss' ? 'Patron' : (r==='chef' ? 'Chef' : 'Ouvrier');
-}
-function obsEtape(c){
-  const e=(c.etape||'').trim();
-  if(c.archive) return 'Archivé';
-  if(c.statut==='cloture') return 'Clôturé';
-  if(c.statut==='termine') return 'Terminé';
-  return e || 'En cours';
-}
-
-function renderObserver(){
-  let corps='';
-
-  if(OBS_ETAT==='chargement'){
-    corps = `<div class="card"><p class="note" style="text-align:center">Ouverture de la vue client…</p></div>`;
-  }
-  else if(OBS_ETAT==='erreur'){
-    corps = `<div class="card" style="border-color:var(--warn)">
-      <p class="note"><b>Observation impossible.</b></p>
-      <p class="note" style="margin-top:6px">${esc(OBS_ERR)}</p>
-      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="obsCharger()">Réessayer</button>
-    </div>`;
-  }
-  else if(OBS){
-    const chs=OBS.chantiers||[];
-    const eq=OBS.equipe||[];
-    const actifs=chs.filter(function(c){ return !c.archive && c.statut==='en_cours'; });
-
-    corps = `<div class="card" style="border-color:var(--warn)">
-      <p class="note" style="margin:0"><b>Lecture seule.</b> Rien de ce que tu vois ici ne peut être modifié. Ton passage est enregistré dans le journal d'administration.</p>
-    </div>
-
-    <div class="card">
-      <div class="kpis" style="margin-bottom:8px">
-        <div class="kpi acc"><div class="big">${actifs.length}</div><div class="lbl">En cours</div></div>
-        <div class="kpi"><div class="big">${chs.length}</div><div class="lbl">Chantiers</div></div>
-        <div class="kpi"><div class="big">${eq.length}</div><div class="lbl">Équipe</div></div>
-      </div>
-      <p class="note">Vue telle qu'elle se présente au patron de l'entreprise.</p>
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Ses chantiers</h2></div>
-      ${chs.length ? chs.map(function(c){
-        const t=c.taches||{faites:0,total:0};
-        const pct=t.total>0?Math.round(t.faites/t.total*100):0;
-        const client=[c.client_societe,c.client_nom].filter(Boolean).join(' — ');
-        return `<div class="task-row" style="align-items:flex-start">
-          <div style="flex:1;min-width:0">
-            <b style="font-size:13px">${esc(c.nom||'Sans nom')}</b>
-            <span class="tag" style="margin-left:6px">${esc(obsEtape(c))}</span>
-            ${client?`<div class="tag" style="margin-top:2px">${esc(client)}${c.ville?(' · '+esc(c.ville)):''}</div>`:''}
-            <div class="note" style="font-size:11px;margin-top:3px">
-              ${t.total>0?(t.faites+'/'+t.total+' tâches ('+pct+'%)'):'aucune tâche'} · modifié ${parcDepuis(c.maj_le)}
-            </div>
-            ${t.total>0?`<div class="progress" style="margin-top:5px"><span style="width:${pct}%"></span></div>`:''}
-          </div>
-        </div>`;
-      }).join('') : `<p class="note">Aucun chantier.</p>`}
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Son équipe</h2></div>
-      ${eq.length ? eq.map(function(m){
-        return `<div class="task-row">
-          <span style="flex:1;min-width:0"><b style="font-size:13px">${esc(m.nom||'Sans nom')}</b>
-            <span class="tag" style="margin-left:6px">${esc(obsRole(m.role))}</span></span>
-          ${m.actif===false?`<span class="note" style="font-size:11px">désactivé</span>`:''}
-        </div>`;
-      }).join('') : `<p class="note">Personne dans l'équipe pour l'instant.</p>`}
-    </div>`;
-  }
-
-  app.innerHTML = `<div class="center-wrap" style="justify-content:flex-start;max-width:560px">
-    <button class="backbtn" style="align-self:flex-start" onclick="obsRetour()"><span class="ar">←</span> Fiche client</button>
-    <div style="text-align:center;margin:8px 0 16px">
-      <h1 style="font-size:22px">Mode observation</h1>
-      <p class="note" style="margin-top:6px">${esc(OBS?(OBS.nom||OBS_SLUG):OBS_SLUG)}</p>
-    </div>
-    ${corps}
-    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="obsCharger()">Rafraîchir</button>
-  </div>`;
-}
-
 /* ====================== MA MARGE ======================
    Ce que chaque client rapporte, face a ce que son IA me coute.
    Les prix sont affiches HT. Reference mensuelle = le tarif
@@ -2548,8 +2445,7 @@ function renderFiche(){
     </div>
 
     <div class="card">
-      <button class="btn primary" style="width:100%;margin-bottom:6px" onclick="fantomeEntrer('${esc(f.slug)}')">Entrer dans son espace (accès complet)</button>
-      <button class="btn ghost" style="width:100%;margin-bottom:6px" onclick="obsOuvrir('${esc(f.slug)}')">Aperçu rapide (lecture seule)</button>
+      <button class="btn primary" style="width:100%;margin-bottom:6px" onclick="fantomeEntrer('${esc(f.slug)}')">Ouvrir son application en patron</button>
       <button class="btn ghost" style="width:100%" onclick="parcCopier('${esc(f.slug)}')">Copier son lien</button>
       <button class="btn ghost" style="width:100%;margin-top:6px" onclick="parcBasculer('${esc(f.slug)}',${f.actif?'false':'true'});ficheRetour()">${f.actif?'Suspendre ce client':'Réactiver ce client'}</button>
     </div>`;
@@ -2622,7 +2518,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v239 · 20/07";
+const APP_VERSION="v240 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>

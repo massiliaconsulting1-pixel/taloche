@@ -1312,6 +1312,14 @@ const AUTH = {
 // ---- localStorage helpers ----
 function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:JSON.parse(v); }catch(e){ return d; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+/* Le cache des reglages doit etre range PAR ARTISAN. Avec une cle
+   unique, la page d'accueil de taloche.fr (aucun artisan designe)
+   reaffichait le dernier artisan visite dans ce navigateur. */
+function cleConfig(){
+  var s = '';
+  try{ s = slugClient() || ''; }catch(_){ }
+  return 'cache_config_' + (s || '_taloche');
+}
 const LS_THEME="batisuivi_theme", LS_CLIENT="batisuivi_client", LS_ROLEVIEW="batisuivi_roleview";
 
 // ---- état ----
@@ -1707,12 +1715,13 @@ function resetCache(){ if(!confirm("Vider le cache de l'app et recharger la dern
    arrivent aux etapes suivantes.
    ------------------------------------------------------------------ */
 function bootSupabase(){
-  CONFIG_DB = lsGet('cache_config',{}) || {};
+  try{ localStorage.removeItem('cache_config'); }catch(_){ }   /* ancienne cle commune : on la purge */
+  CONFIG_DB = lsGet(cleConfig(),{}) || {};
   NOTES_SEEN=lsGet('notes_seen',{})||{}; VEH_SEEN=lsGet('veh_seen',{})||{};
   MSG_SEEN=lsGet('msg_seen',{})||{}; ETAPE_SEEN=lsGet('etape_seen',{})||{}; SIGN_SEEN=lsGet('sign_seen',{})||{};
   syncEtapes();
   BS.ecouter('config', function(v){
-    if(v){ CONFIG_DB = v; lsSet('cache_config', CONFIG_DB); syncEtapes(); }
+    if(v){ CONFIG_DB = v; lsSet(cleConfig(), CONFIG_DB); syncEtapes(); }
     try{ applyTheme(); applyAppIcons(); }catch(e){}
     AUTH_READY = true;
     if(!BOOTED){ BOOTED = true; }
@@ -1744,7 +1753,7 @@ function rechargerEquipe(){
       /* les reglages prives ne sont lisibles qu'une fois connecte :
          on les recharge maintenant */
       BS.ecouter('config', function(v){
-        if(v){ CONFIG_DB = v; lsSet('cache_config', CONFIG_DB); syncEtapes(); }
+        if(v){ CONFIG_DB = v; lsSet(cleConfig(), CONFIG_DB); syncEtapes(); }
         if(BOOTED) render();
       });
       if(SCREEN==='entry'){ SCREEN='team'; TAB='chantiers'; CUR_CHANTIER=null; }
@@ -2014,7 +2023,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v231 · 20/07";
+const APP_VERSION="v232 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -2988,7 +2997,23 @@ function renderTeamAuth(){
 }
 function setAuthMode(m){ AUTH_MODE=m; render(); }
 function tErr(m){ const e=document.getElementById('t_err'); if(e){ e.style.display=m?'block':'none'; e.textContent=m||''; } }
-function authMsg(c){ return ({'auth/invalid-email':"Email invalide.",'auth/user-not-found':"Aucun compte avec cet email.",'auth/wrong-password':"Mot de passe incorrect.",'auth/invalid-credential':"Email ou mot de passe incorrect.",'auth/email-already-in-use':"Un compte existe déjà avec cet email.",'auth/weak-password':"Mot de passe trop court (6 min).",'auth/network-request-failed':"Problème de connexion."})[c]||"Erreur, réessaie."; }
+function authMsg(c){
+  /* Codes Firebase (client 1, ancienne base) */
+  const fb = ({'auth/invalid-email':"Email invalide.",'auth/user-not-found':"Aucun compte avec cet email.",'auth/wrong-password':"Mot de passe incorrect.",'auth/invalid-credential':"Email ou mot de passe incorrect.",'auth/email-already-in-use':"Un compte existe déjà avec cet email.",'auth/weak-password':"Mot de passe trop court (6 min).",'auth/network-request-failed':"Problème de connexion."})[c];
+  if(fb) return fb;
+  /* Messages Supabase : ils arrivent en anglais, on les traduit.
+     Sans cela toute erreur devenait « Erreur, réessaie », ce qui ne
+     disait pas si c'était le mot de passe ou le compte lui-meme. */
+  const t = String(c==null?'':c).toLowerCase();
+  if(!t) return "Erreur, réessaie.";
+  if(t.indexOf('invalid login credentials')>=0) return "Email ou mot de passe incorrect — ou aucun compte n'existe avec cet email.";
+  if(t.indexOf('email not confirmed')>=0)       return "Compte pas encore confirmé : ouvre le lien reçu par email.";
+  if(t.indexOf('already registered')>=0)        return "Un compte existe déjà avec cet email.";
+  if(t.indexOf('password should be')>=0)        return "Mot de passe trop court (6 caractères minimum).";
+  if(t.indexOf('rate limit')>=0)                return "Trop de tentatives : réessaie dans quelques minutes.";
+  if(t.indexOf('failed to fetch')>=0 || t.indexOf('network')>=0) return "Problème de connexion.";
+  return "Erreur : " + c;
+}
 
 function teamLogin(){
   if(!useFB){ return localTeamDemo(); }

@@ -2499,8 +2499,9 @@ function renderAnnonce(){
       <textarea id="ann_txt" rows="3" placeholder="ex: L'application sera indisponible samedi de 7h à 9h.">${esc(a?(a.txt||''):'')}</textarea>
       <p class="tag" style="margin-top:12px">Ton</p>
       <div style="display:flex;gap:8px;margin-top:6px">
-        <button class="btn ${ANN_TYPE==='info'?'primary':'ghost'}" style="flex:1" onclick="annonceType('info')">Info</button>
-        <button class="btn ${ANN_TYPE==='warn'?'primary':'ghost'}" style="flex:1" onclick="annonceType('warn')">Important</button>
+        <button class="btn ${ANN_TYPE==='info'?'primary':'ghost'}" style="flex:1" onclick="annonceType('info')">📣 Info</button>
+        <button class="btn ${ANN_TYPE==='attention'?'primary':'ghost'}" style="flex:1" onclick="annonceType('attention')">⚠️ Attention</button>
+        <button class="btn ${ANN_TYPE==='alerte'?'primary':'ghost'}" style="flex:1" onclick="annonceType('alerte')">🚨 Alerte</button>
       </div>
       <button class="btn primary" style="width:100%;margin-top:14px" onclick="annonceEnvoyer()">Diffuser aux ${nb} clients</button>
       <p class="note" style="font-size:11px;margin-top:8px">Elle apparaît en haut de leur application. Chacun peut la masquer une fois lue, mais elle reste visible aux nouveaux venus tant que tu ne la retires pas.</p>
@@ -2948,7 +2949,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v247 · 20/07";
+const APP_VERSION="v248 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>

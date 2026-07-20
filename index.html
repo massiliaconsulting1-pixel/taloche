@@ -1969,6 +1969,124 @@ function parcCopier(slug){
   catch(_){ prompt("Lien du client :", url); }
 }
 
+/* ---------- Creation d'un client ---------- */
+let PARC_FORMULE='basique';
+let PARC_NEW=null;          // le client tout juste cree
+
+/* « EC Maçonnerie » -> « ec-maconnerie » */
+function parcSlugify(t){
+  return String(t||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // enleve les accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'')
+    .slice(0,40);
+}
+
+function parcNouveau(){
+  PARC_FORMULE='basique';
+  openModal(`<div class="grabber"></div>
+    <h2 style="margin-bottom:6px">Nouveau client</h2>
+    <p class="note">Le nom, l'adresse, la formule. L'artisan est en ligne dans la foulée.</p>
+    <input id="nc_nom" placeholder="Nom de l'entreprise" style="margin-top:12px" oninput="parcSlugAuto()">
+    <input id="nc_slug" placeholder="adresse-web" style="margin-top:8px" oninput="parcSlugMaj()">
+    <p class="note" style="font-size:11px;margin-top:5px">Son adresse : taloche.fr/?client=<b id="nc_apercu">…</b></p>
+    <p class="tag" style="margin-top:12px">Formule</p>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn ghost" id="nc_f_basique" style="flex:1" onclick="parcFormule('basique')">Basique</button>
+      <button class="btn ghost" id="nc_f_premium" style="flex:1" onclick="parcFormule('premium')">Premium</button>
+    </div>
+    <button class="btn primary" id="nc_go" style="width:100%;margin-top:14px" onclick="parcCreer()">Créer le client</button>
+    <div id="nc_err" class="err"></div>`);
+  setTimeout(function(){ parcFormule('basique'); var e=document.getElementById('nc_nom'); if(e) e.focus(); },60);
+}
+
+/* tant que Lenny n'a pas touche a l'adresse, elle suit le nom */
+function parcSlugAuto(){
+  const sl=document.getElementById('nc_slug'); if(!sl) return;
+  if(sl.dataset.touche==='1') return;
+  sl.value = parcSlugify(val('nc_nom'));
+  parcApercu();
+}
+function parcSlugMaj(){
+  const sl=document.getElementById('nc_slug'); if(!sl) return;
+  sl.dataset.touche='1';
+  sl.value = parcSlugify(sl.value);
+  parcApercu();
+}
+function parcApercu(){
+  const a=document.getElementById('nc_apercu');
+  if(a) a.textContent = (val('nc_slug')||'…');
+}
+function parcFormule(f){
+  PARC_FORMULE=f;
+  ['basique','premium'].forEach(function(k){
+    const b=document.getElementById('nc_f_'+k);
+    if(b) b.className = 'btn '+(k===f?'primary':'ghost');
+  });
+}
+
+function parcCreer(){
+  const nom=(val('nc_nom')||'').trim();
+  const slug=parcSlugify(val('nc_slug'));
+  const er=document.getElementById('nc_err');
+  const dire=function(m){ if(er){ er.style.display='block'; er.textContent=m; } };
+  if(er) er.style.display='none';
+  if(nom.length<2)  return dire("Entre le nom de l'entreprise.");
+  if(slug.length<2) return dire("L'adresse doit faire au moins 2 caractères.");
+
+  const b=document.getElementById('nc_go');
+  if(b){ b.disabled=true; b.textContent="Création en cours…"; }
+
+  adminApiCall('creerClient',{ nom:nom, slug:slug, formule:PARC_FORMULE })
+    .then(function(r){
+      PARC_NEW = r && r.client ? r.client : null;
+      closeModal();
+      parcResultat();
+      parcCharger();
+    })
+    .catch(function(e){
+      if(b){ b.disabled=false; b.textContent="Créer le client"; }
+      dire((e&&e.message)?e.message:"Création impossible.");
+    });
+}
+
+/* Ecran de remise : l'adresse et le code patron, prets a envoyer */
+function parcResultat(){
+  const c=PARC_NEW; if(!c) return;
+  openModal(`<div class="grabber"></div>
+    <h2 style="margin-bottom:6px">${esc(c.entreprise||'')} est en ligne</h2>
+    <p class="note">Envoie ces deux lignes à l'artisan. Le code patron ne sert qu'une fois : il donne le rôle patron à la première inscription.</p>
+    <div class="card" style="margin-top:12px">
+      <p class="tag">Adresse</p>
+      <p style="font-size:13px;word-break:break-all;margin-top:2px"><b>${esc(c.adresse||'')}</b></p>
+      <p class="tag" style="margin-top:12px">Code patron</p>
+      <p style="font-size:26px;font-family:'Sora';font-weight:800;letter-spacing:3px;margin-top:2px">${esc(c.code_patron||'')}</p>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:12px" onclick="parcCopierMessage()">Copier le message d'installation</button>
+    <button class="btn ghost" style="width:100%;margin-top:6px" onclick="parcCopierTexte('${esc(c.code_patron||'')}','Code copié ✅')">Copier seulement le code</button>
+    <button class="btn ghost" style="width:100%;margin-top:6px" onclick="closeModal()">Fermer</button>`);
+}
+
+function parcCopierTexte(t,msg){
+  try{ navigator.clipboard.writeText(t); toast(msg||"Copié ✅"); }
+  catch(_){ prompt("Copie ceci :", t); }
+}
+
+function parcCopierMessage(){
+  const c=PARC_NEW; if(!c) return;
+  const m =
+    "Bonjour,\n\n" +
+    "Votre application Taloche est prête.\n\n" +
+    "Adresse : " + (c.adresse||'') + "\n" +
+    "Code patron : " + (c.code_patron||'') + "\n\n" +
+    "À la première ouverture : « Je fais partie de l'équipe » puis « Créer mon compte », et saisissez ce code. " +
+    "Il vous donnera le rôle patron. Ajoutez ensuite votre logo et vos couleurs dans les réglages.\n\n" +
+    "Bonne installation,\n" +
+    "Lenny IMBAULT — Massilia Consulting";
+  parcCopierTexte(m, "Message copié ✅");
+}
+
 function renderParc(){
   let corps = '';
 
@@ -2015,6 +2133,7 @@ function renderParc(){
       <h1 style="font-size:22px">Parc client</h1>
       <p class="note" style="margin-top:6px">Tous les artisans Taloche · lecture via le serveur</p>
     </div>
+    <button class="btn primary" style="width:100%;margin-bottom:12px" onclick="parcNouveau()">+ Nouveau client</button>
     ${corps}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
     <p class="note" style="text-align:center;margin-top:14px;font-size:11px">Chaque consultation est journalisée côté serveur.</p>
@@ -2023,7 +2142,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v232 · 20/07";
+const APP_VERSION="v233 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>

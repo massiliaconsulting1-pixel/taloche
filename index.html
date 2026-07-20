@@ -547,8 +547,6 @@ const navEl=document.getElementById('nav');
    ================================================================== */
 const TALOCHE_ICONE = "data:image/png;base64,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";
 
-const useFB = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
-
 /* ==================================================================
    COUCHE DE TRADUCTION  —  interrupteur Firebase / Supabase
    ------------------------------------------------------------------
@@ -564,6 +562,17 @@ const SUPABASE_CONFIG = {
   cle:     'sb_publishable_kpLDUAXAQgqcYS1ZO6HeJg_LM6ju7sk',
   slug:    ''      // vide = deduit de l'adresse. Ne rien mettre ici en production.
 };
+
+/* « l'app est reliee a une base » — et non « Firebase est configure ».
+   Une soixantaine d'endroits s'appuient dessus pour decider d'ecrire en
+   base plutot que dans le navigateur. Tant qu'il dependait de la config
+   Firebase, la vider (elle ne sert plus) aurait fait basculer toute
+   l'app en stockage local, sans un mot.
+   A declarer APRES BACKEND et SUPABASE_CONFIG : une constante ne peut
+   pas etre lue avant sa ligne de declaration. */
+const useFB = (BACKEND === 'supabase')
+  ? !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.cle)
+  : !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
 
 /* Quel artisan ? On le lit dans l'adresse de la page.
    batisuivi.fr/ec-maconnerie  ->  'ec-maconnerie'
@@ -587,7 +596,7 @@ function slugClient(){
 }
 
 const BS = {
-  pret(){ return BACKEND==='firebase' ? useFB : !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey); },
+  pret(){ return BACKEND==='firebase' ? useFB : !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.cle); },
 
   /* --- ecoute permanente d'une branche (temps reel) --- */
   ecouter(chemin, cb){
@@ -689,6 +698,34 @@ const BS = {
 
     /* --- traduction entre la fiche de la base et le membre d'equipe
            tel que l'application le manipule --- */
+    /* Un vehicule tel que l'application le manipule. */
+    versVehicule(r){
+      if(!r) return null;
+      const reste = r.reste || {};
+      const v = {
+        nom: r.nom||'', immat: r.immatriculation||'',
+        emoji: r.emoji||'\ud83d\ude90', carburant: r.carburant||'Diesel',
+        note: r.notes||'',
+        assignes: reste.assignes || {},
+        photos:   reste.photos   || {},
+        createdAt: r.cree_le ? new Date(r.cree_le).getTime() : Date.now()
+      };
+      if(r.prochain_controle) v.ctrl = r.prochain_controle;
+      return v;
+    },
+    /* Et le chemin inverse : les champs connus dans leurs colonnes,
+       le reste dans la salle d'attente. */
+    versFicheVehicule(v){
+      const f = {
+        nom: v.nom||'', immatriculation: v.immat||'',
+        emoji: v.emoji||'\ud83d\ude90', carburant: v.carburant||'Diesel',
+        notes: v.note||'',
+        reste: { assignes: v.assignes||{}, photos: v.photos||{} }
+      };
+      f.prochain_controle = v.ctrl || null;
+      return f;
+    },
+
     versMembre(r){
       if(!r) return null;
       const m = { nom:r.nom||'', email:r.email||'', role:r.role||'employe',
@@ -1088,6 +1125,28 @@ const BS = {
       });
     },
 
+    /* Le parc de vehicules de l'entreprise. */
+    lireVehicules(){
+      const c = BS._sb.demarrer(); if(!c) return Promise.resolve(null);
+      return c.from('vehicules').select('*').then(function(r){
+        if(r.error){ BS._sb.souci('Lecture des véhicules', r.error); return null; }
+        const out = {};
+        (r.data||[]).forEach(function(x){ out[x.id] = BS._sb.versVehicule(x); });
+        return out;
+      });
+    },
+    ecrireVehicule(id, v){
+      const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
+      if(!v) return c.from('vehicules').delete().eq('id', id);
+      const eid = BS._sb.entrepriseId;
+      if(!eid) return Promise.resolve();
+      const ligne = Object.assign({ id:id, entreprise_id:eid }, BS._sb.versFicheVehicule(v));
+      return c.from('vehicules').upsert(ligne).then(function(r){
+        if(r.error) BS._sb.souci('Enregistrement du véhicule', r.error);
+        return r;
+      });
+    },
+
     /* Toute l'equipe. Les regles de la base ne renvoient que
        les collegues de la meme entreprise — jamais ceux d'un autre client. */
     lireEquipe(){
@@ -1130,6 +1189,7 @@ const BS = {
       if(chemin === 'planning') return BS._sb.lirePlanning();
       if(chemin === 'notesfrais') return BS._sb.lireNotesFrais();
       if(chemin === 'chat') return BS._sb.lireChat();
+      if(chemin === 'vehicules') return BS._sb.lireVehicules();
       if(chemin.indexOf('invites/')===0) return Promise.resolve(null);  // gere par rejoindre_entreprise
       console.warn('Supabase : « '+chemin+' » pas encore bascule (phase 4 en cours)');
       return Promise.resolve(null);
@@ -1176,6 +1236,31 @@ const BS = {
       }
 
       /* chantiers/<id> : une fiche de chantier */
+      let mv = chemin.match(/^vehicules\/([^/]+)$/);
+      if(mv) return BS._sb.ecrireVehicule(mv[1], valeur);
+      if(chemin === 'vehicules'){
+        const ids = Object.keys(valeur || {});
+        return Promise.all(ids.map(function(k){ return BS._sb.ecrireVehicule(k, valeur[k]); }));
+      }
+
+      /* Code d'invitation cree par le patron. Sans ce branchement, le
+         code s'affichait a l'ecran mais n'existait nulle part : l'ouvrier
+         ne pouvait jamais rejoindre l'equipe. */
+      let mvi = chemin.match(/^invites\/([^/]+)$/);
+      if(mvi){
+        const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
+        if(!valeur) return c.from('invitations').delete().eq('code', mvi[1]);
+        const eid = BS._sb.entrepriseId;
+        if(!eid){ BS._sb.souci("Création du code", {message:"entreprise inconnue"}); return Promise.resolve(); }
+        const role = (valeur.role==='chef') ? 'chef' : ((valeur.role==='boss') ? 'boss' : 'employe');
+        return c.from('invitations')
+          .insert({ entreprise_id: eid, code: mvi[1], role: role })
+          .then(function(r){
+            if(r.error) BS._sb.souci("Création du code d'invitation", r.error);
+            return r;
+          });
+      }
+
       let mc = chemin.match(/^chantiers\/([^/]+)$/);
       if(mc) return BS._sb.ecrireChantier(mc[1], valeur);
       if(chemin === 'chantiers'){
@@ -1242,6 +1327,12 @@ const BS = {
       if(chemin === 'chantiers'){
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
         return c.from('chantiers').delete().eq('entreprise_id', BS._sb.entrepriseId);
+      }
+      const mv = chemin.match(/^vehicules\/([^/]+)$/);
+      if(mv) return BS._sb.effacer('vehicules', 'id', mv[1], 'véhicule');
+      if(chemin === 'vehicules'){
+        const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
+        return c.from('vehicules').delete().eq('entreprise_id', BS._sb.entrepriseId);
       }
       const m = chemin.match(/^team\/([^/]+)$/);
       if(m) return BS._sb.effacer('utilisateurs', 'id', m[1], 'membre d\u2019équipe');
@@ -1388,16 +1479,6 @@ let AUTH_MODE='login';
 
 // ---- Firebase refs ----
 function db(){ return firebase.database(); }
-function refConfig(){ return db().ref('batisuivi/config'); }
-function refChantiers(){ return db().ref('batisuivi/chantiers'); }
-function refChantier(id){ return db().ref('batisuivi/chantiers/'+id); }
-function refTeam(uid){ return db().ref('batisuivi/team/'+uid); }
-function refInvite(code){ return db().ref('batisuivi/invites/'+code); }
-function refVehicules(){ return db().ref('batisuivi/vehicules'); }
-function refVehicule(id){ return db().ref('batisuivi/vehicules/'+id); }
-function refPlanning(wk){ return db().ref('batisuivi/planning/'+wk); }
-function refNotesFrais(){ return db().ref('batisuivi/notesfrais'); }
-function refNoteFrais(uid2,id){ return db().ref('batisuivi/notesfrais/'+uid2+'/'+id); }
 
 // ---- utils ----
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1506,7 +1587,6 @@ function logoHTML(){ return coLogo() ? `<img src="${coLogo()}" alt="">` : '🏗�
 const DEFAULT_ETAPES=["Pas encore signé","Devis validé","Préparation","Travaux en cours","Finitions","Terminé"];
 let ETAPES=DEFAULT_ETAPES.slice();
 function syncEtapes(){ ETAPES = (CONFIG_DB&&Array.isArray(CONFIG_DB.etapes)&&CONFIG_DB.etapes.length>=2) ? CONFIG_DB.etapes.slice() : DEFAULT_ETAPES.slice(); }
-function etPct(e){ const i=ETAPES.indexOf(e||ETAPES[0]); return Math.round(((i<0?0:i)/(ETAPES.length-1))*100); }
 
 // ---- thème ----
 function myTheme(){
@@ -1747,7 +1827,6 @@ function rolePerms(k){ const d=roleDef(k); const base=NIVEAU_PERMS[d.niveau||'em
 function perm(flag){ if(!ME||!ME.role) return false; return !!rolePerms(ME.role)[flag]; }
 function isBoss(){ return perm('gerer_equipe'); }
 function isChef(){ return perm('gerer_chantiers'); }
-function saveRoles(){ saveConfigDB(); }
 
 /* ============== BOOT ============== */
 function cleanupSW(){ try{ if('serviceWorker' in navigator){ navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); }).catch(function(){}); } if(window.caches){ caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); }).catch(function(){}); } }catch(_){ } }
@@ -2961,15 +3040,8 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v252 · 20/07";
-function askDevCode(){
-  openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
-    <p class="note">Réservé à l'installateur de l'application.</p>
-    <input id="dev_code" type="password" inputmode="numeric" placeholder="Code d'accès" style="margin-top:10px;text-align:center;letter-spacing:4px;font-family:'Sora';font-weight:800">
-    <button class="btn primary" style="width:100%;margin-top:10px" onclick="enterDev()">Entrer</button>
-    <div id="dev_err" class="err"></div>`);
-  setTimeout(()=>{const e=document.getElementById('dev_code');e&&e.focus();},60);
-}
+const APP_VERSION="v257 · 20/07";
+
 function enterDev(){
   const v=(document.getElementById('dev_code').value||'').trim();
   if(v!==DEV_CODE){ const e=document.getElementById('dev_err'); e.style.display='block'; e.textContent="Code incorrect."; return; }
@@ -3043,11 +3115,7 @@ function renderDev(){
       <button class="btn ghost" style="width:100%;margin-top:10px" onclick="exportData()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Exporter / sauvegarder les données</button>
     </div>
 
-
-
     
-
-
 
     
 
@@ -3057,14 +3125,9 @@ function renderDev(){
   </div>`;
 }
 function devSignOut(){ closeModal(); ME=null; DEV_ACCESS=false; CUR_CHANTIER=null; TAB='chantiers'; SCREEN='entry'; if(useFB||BACKEND==='supabase'){ AUTH.deconnexion(); } AUTH_USER=null; render(); toTop(); toast("Déconnecté ✅"); }
-function devSetPointage(v){ CONFIG_DB.pointage=v; saveConfigDB(); renderDev(); }
-function devSetFactu(v){ CONFIG_DB.factuOff=!v; saveConfigDB(); renderDev(); }
-function devSetIA(v){ CONFIG_DB.iaOff=!v; saveConfigDB(); renderDev(); }
-function devSetFacturX(v){ CONFIG_DB.facturXOff=!v; saveConfigDB(); renderDev(); }
-function devSetPlan(p){ CONFIG_DB.plan=p; saveConfigDB(); renderDev(); }
-function devSetFacturXSuspend(v){ CONFIG_DB.facturXSuspendu=v; saveConfigDB(); renderDev(); toast(v?("Factur-X suspendu — réactivation automatique le "+facturXDateFr()):"Factur-X activé"); }
+
 function devSetDefaultColor(id){ CONFIG_DB.couleurDefaut=id; saveConfigDB(); if(!lsGet(LS_THEME,null)){ applyTheme(); } cfgRerender(); }
-function devSetCustomColor(hex){ if(!hex||String(hex).charAt(0)!=='#') return; favColorAdd(hex); devSetDefaultColor(hex); }
+
 function devColorPicker(){
   const cur=(CONFIG_DB.couleurDefaut||CONFIG.COULEUR_DEFAUT||'bleu'); const dot=cur.indexOf('.'); const base=dot>0?cur.slice(0,dot):cur; const acc=dot>0?cur.slice(dot+1):'';
   let h=`<div style="display:flex;gap:9px;flex-wrap:wrap">`;
@@ -3115,9 +3178,7 @@ function devSaveConfig(){
 function devUploadLogo(input){ const f=input.files&&input.files[0]; if(!f) return;
   const r=new FileReader(); r.onload=e=>startCrop(e.target.result,'logo'); r.readAsDataURL(f); }
 function devRemoveLogo(){ CONFIG_DB.logo=''; saveConfigDB(); toast("Logo retiré"); cfgRerender(); }
-function devUploadIcon(input){ const f=input.files&&input.files[0]; if(!f) return;
-  const r=new FileReader(); r.onload=e=>startCrop(e.target.result,'icon'); r.readAsDataURL(f); }
-function devRemoveIcon(){ CONFIG_DB.appIcon=''; saveConfigDB(); _iconCache={src:null,icon:null}; try{applyAppIcons();}catch(_){ } toast("Icône retirée"); renderDev(); }
+
 function demoImg(txt,bg){ return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="${bg}"/><text x="200" y="158" font-size="26" fill="#ffffff" font-family="Arial,sans-serif" text-anchor="middle">${txt}</text></svg>`); }
 const DEMO_TRADES={
   peintre:{label:"Peintre",emoji:"\ud83c\udfa8"},
@@ -3584,22 +3645,14 @@ function devLoadDemoGo(){
   DEV_ACCESS=true;   // permet de revenir à l'espace dev sans recode
   render(); toTop();
 }
-function devClearChantiers(){
-  dangerGuard("Effacer tous les chantiers",
-    "Tous les chantiers de cette instance seront supprimés (avec leurs photos, devis, factures, pointages). L'équipe et les réglages sont conservés.",
-    "SUPPRIMER", devClearChantiersGo);
-}
+
 function devClearChantiersGo(){
   if(!demoAutorisee()) return demoRefus();
   if(useFB) BS.supprimer('chantiers'); else { CHANTIERS={}; lsSet('batisuivi_chantiers',{}); }
   CHANTIERS={};
   toast("Chantiers effacés"); render();
 }
-function devClearChantiersTeam(){
-  dangerGuard("Effacer chantiers et équipe",
-    "Chantiers, équipe, véhicules, planning, notes de frais et messagerie seront supprimés. Le logo, les couleurs et les réglages sont conservés.",
-    "SUPPRIMER", devClearChantiersTeamGo);
-}
+
 function devClearChantiersTeamGo(){
   if(!demoAutorisee()) return demoRefus();
   if(useFB){
@@ -3611,11 +3664,7 @@ function devClearChantiersTeamGo(){
   CHANTIERS={}; TEAM={}; VEHICULES={}; PLANNING={}; NOTES_FRAIS={}; CHAT={}; CHAT_SEEN={};
   toast("Chantiers et équipe effacés ✅"); renderDev();
 }
-function devResetAll(){
-  dangerGuard("Tout réinitialiser",
-    "🚨 <b>TOUT</b> sera supprimé : chantiers, équipe, véhicules, planning, notes de frais, messagerie <b>ET tous les réglages</b> (logo, couleurs, identité, facturation, modèles). L'instance repart de zéro.",
-    "REINITIALISER", devResetAllGo);
-}
+
 function devResetAllGo(){
   if(useFB){
     // On supprime CHAQUE branche (la suppression de la racine 'batisuivi' est refusée par les règles)
@@ -4550,7 +4599,7 @@ function renderTeamApp(){
 
   app.innerHTML=`
   <div class="top"><div class="brand"><div class="logo">${logoHTML()}</div>
-    <div class="bn"><b>${esc(coName())}</b><small>${esc(ME.nom)}</small></div></div>
+    <div class="bn"><b>${esc(coName())}</b><small>${esc(nomAffiche(ME))}</small></div></div>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="role-chip">${(ME&&ME._dev)?'Accès dev':roleLabel(ME.role)}</span>
       <button class="burger" onclick="openMenu()" aria-label="Menu"><span></span><span></span><span></span></button>
@@ -4638,7 +4687,7 @@ function toTop(){ try{ window.scrollTo(0,0); document.documentElement.scrollTop=
 
 /* ---- liste des chantiers ---- */
 function isLate(c){ return c.dateFin && c.dateFin<todayISO() && c.etape!==ETAPES[ETAPES.length-1]; }
-function devisSigne(c){ if(!c||!c.published) return false; return Object.values(c.published).some(d=>d&&d.type==='devis'&&d.signature); }
+
 function mergeSeen(local,remote,bool){ const out=Object.assign({},local||{}); if(remote) Object.keys(remote).forEach(k=>{ out[k]= bool ? (out[k]||remote[k]) : Math.max(out[k]||0, remote[k]||0); }); return out; }
 function seenUid(){
   const u = myUid();
@@ -4910,7 +4959,7 @@ function viewChantiersList(){
   <div id="chList">${chBodyHTML()}</div>`;
   return h;
 }
-function openClients(){ CLIENTS_VIEW=true; render(); toTop(); }
+
 function closeClients(){ CLIENTS_VIEW=false; render(); toTop(); }
 function viewClientsList(){
   const all=Object.keys(CHANTIERS).map(id=>({id,...CHANTIERS[id]}));
@@ -4939,23 +4988,6 @@ function filterClients(){ const q=(document.getElementById('clSearch').value||''
 function applyChFilter(){ const i=document.getElementById('chSearch'); if(i)CH_SEARCH=i.value; chRefreshList(); }
 function setChFilter(e){ CH_FILTER=e||''; try{ document.querySelectorAll('.chip[data-f]').forEach(b=>{ b.classList.toggle('on',(b.getAttribute('data-f')||'')===CH_FILTER); }); }catch(_){ } chRefreshList(); }
 let _csw=null;
-function chTouchStart(e,id){ const card=e.currentTarget; _csw={id,card,x:e.touches[0].clientX,y:e.touches[0].clientY,dx:0,locked:null}; }
-function chTouchMove(e){ if(!_csw)return; const t=e.touches[0]; const dx=t.clientX-_csw.x, dy=t.clientY-_csw.y;
-  if(_csw.locked===null && (Math.abs(dx)>6||Math.abs(dy)>6)) _csw.locked=Math.abs(dx)>Math.abs(dy)?'h':'v';
-  if(_csw.locked!=='h') return;
-  if(e.cancelable) e.preventDefault();
-  _csw.dx=Math.min(0,Math.max(dx,-180));
-  _csw.card.style.transition='none'; _csw.card.style.transform='translateX('+_csw.dx+'px)';
-}
-function chTouchEnd(e){ if(!_csw)return; const card=_csw.card, dx=_csw.dx; card.style.transition='transform .2s ease';
-  if(dx<-70){ card.style.transform='translateX(-168px)'; card.dataset.open='1'; }
-  else { card.style.transform='translateX(0)'; card.dataset.open=''; }
-  _csw=null;
-}
-function chTap(id,ev){ const card=ev.currentTarget;
-  if(card.dataset.open==='1'){ card.style.transition='transform .2s ease'; card.style.transform='translateX(0)'; card.dataset.open=''; return; }
-  openChantier(id);
-}
 
 /* ---- détail chantier ---- */
 /* ===== Fiche chantier : onglets + en-tête santé ===== */
@@ -5242,6 +5274,27 @@ function clearRdv(id){ const c=CHANTIERS[id]; delete c.dateRdv; delete c.heureRd
 function acceptClientRdv(id){ const c=CHANTIERS[id]; if(!c||!c.rdvContre) return; if(!isChef()){ toast("Réservé au chef et au patron."); return; } c.dateRdv=c.rdvContre.date; c.heureRdv=c.rdvContre.heure||''; c.noteRdv=c.rdvContre.note||''; delete c.rdvContre; c.rdvStatus='accepte'; saveChantier(id); toast("Nouveau créneau accepté ✅"); render(); }
 
 /* ---- pointage horaire ---- */
+/* Le nom a montrer : le prenom d'abord, le nom complet ensuite, et
+   en dernier recours ce qui a ete enregistre a l'inscription. */
+function nomAffiche(m){
+  if(!m) return '';
+  const p=(m.prenom||'').trim();
+  if(p) return p;
+  const n=(m.nom||'').trim();
+  return n || '';
+}
+/* Prenom + nom, pour les endroits ou l'on veut l'identite complete. */
+
+/* Repere un nom qui n'est qu'un debut d'adresse mail : c'est le signe
+   qu'il n'a jamais ete renseigne. */
+function nomEstMail(m){
+  if(!m) return false;
+  if((m.prenom||'').trim()) return false;
+  const n=(m.nom||'').trim(), e=(m.email||'').trim();
+  if(!n || !e) return false;
+  return n.toLowerCase() === e.split('@')[0].toLowerCase();
+}
+
 function myUid(){ return AUTH_USER? AUTH_USER.uid : 'local-boss'; }
 function openPointage(id){ // ouvre/ferme un pointage pour l'utilisateur courant
   const c=CHANTIERS[id]; if(!c.pointages) c.pointages={};
@@ -6150,7 +6203,7 @@ function planChColor(cd){
   const nom=planChNom(cd);
   return nom?colorFor(nom):'var(--line)';
 }
-function planJourISO(i){ const monday=planWeek(); const d=new Date(monday); d.setDate(d.getDate()+i); return ymd(d); }
+
 function planChantiersOpts(u){
   const list=Object.keys(CHANTIERS).map(id=>({id,c:CHANTIERS[id]}))
     .filter(x=>x.c && !x.c.archived && x.c.etape!==ETAPES[ETAPES.length-1]);
@@ -6158,7 +6211,7 @@ function planChantiersOpts(u){
   const autres=list.filter(x=>!(x.c.assignes && x.c.assignes[u]));
   return {mine, autres};
 }
-function planCellHTML(cd){ if(!cd) return ''; if(cd.repos) return '😴 Repos'; return `${planChNom(cd)?`<div class="pc-ch">${esc(planChNom(cd))}</div>`:''}${cd.rdv?`<div class="pc-sub"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> ${esc(cd.rdv)}</div>`:''}${cd.fin?`<div class="pc-sub"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V3M4 4h13l-2 4 2 4H4"/></svg> ${esc(cd.fin)}</div>`:''}`; }
+
 function planCellText(cd){ if(!cd) return ''; if(typeof cd==='string') return cd; if(cd.repos) return 'Repos'; return [planChNom(cd),cd.rdv?'RDV: '+cd.rdv:'',cd.fin?'Fin: '+cd.fin:''].filter(Boolean).join('\n'); }
 let _planClip=null, _planEdit=null;
 function setPlanningCell(wk,u,i){
@@ -6619,7 +6672,7 @@ function redacGen(){
   if(!ctx){ toast("Décris d'abord le contexte."); return; }
   if(!iaOn()){ toast("L'assistant IA est désactivé."); return; }
   if(useFB && !(AUTH.connecte())){ toast("Connecte-toi pour utiliser l'assistant."); return; }
-  if(!useFB){ toast("La rédaction fonctionnera une fois l'app en ligne sur Firebase."); return; }
+  if(!useFB){ toast("La rédaction fonctionnera une fois l'app en ligne."); return; }
   const prompt=redacConsigne(REDAC.type)+" Contexte fourni par l'artisan : "+ctx;
   REDAC.busy=true; REDAC.err=''; REDAC.out=''; render();
   aiFn()({ messages:[{role:'user', content:prompt}] }).then(res=>{
@@ -6696,7 +6749,7 @@ function devisIAGen(){
   if(!txt){ toast("Décris d'abord les travaux."); return; }
   if(!iaOn()){ toast("L'assistant IA est désactivé."); return; }
   if(useFB && !(AUTH.connecte())){ toast("Connecte-toi pour utiliser l'assistant."); return; }
-  if(!useFB){ toast("Le devis assisté fonctionnera une fois l'app en ligne sur Firebase."); return; }
+  if(!useFB){ toast("Le devis assisté fonctionnera une fois l'app en ligne."); return; }
   const prompt=`Tu es un métreur du bâtiment en France. À partir de la description de travaux ci-dessous, propose des lignes de devis réalistes avec des prix HT en euros (marché français). Réponds UNIQUEMENT avec un tableau JSON valide, sans aucun texte autour ni explication, au format exact : [{"label":"désignation courte","qty":1,"unit":"u","pu":0}]. label = désignation, qty = quantité, unit = unité (u, m2, ml, h, forfait…), pu = prix unitaire HT en euros. Description des travaux : ${txt}`;
   DEVISIA.busy=true; DEVISIA.err=''; DEVISIA.lignes=null; render();
   aiFn()({ messages:[{role:'user', content:prompt}] }).then(res=>{
@@ -7446,7 +7499,6 @@ function viewDashEquipe(){
   h+= lc || `<div class="card"><p class="note" style="margin:0">Aucune heure pointée pour l'instant. Le suivi de la main-d'œuvre apparaîtra ici dès que ton équipe pointera.</p></div>`;
   return h;
 }
-function delDashDoc(id,pid){ if(!confirm("Supprimer ce document ? Il sera aussi retiré de l'espace client.")) return; unpublishDoc(id,pid); }
 
 /* ====================== ESPACE FACTURATION (mini-app plein écran) ====================== */
 let FACTU_OPEN=false, FTAB='resume';
@@ -7483,7 +7535,7 @@ function setHTab(t){ HTAB=t; CUR_CHANTIER=null; render(); toTop(); }
 /* Geste : glisser du bord gauche vers la droite => revenir à l'Accueil (patron) */
 let _swipeInit=false, _swX=0, _swY=0, _swT=0;
 let _cliEl=null,_cliX=0,_cliY=0,_cliMove=false,_cliOpen=null;
-function delClientRow(btn){ const row=btn.parentElement.querySelector('.cli-row'); const key=row&&row.getAttribute('data-key'); if(!key) return; if(!confirm("Retirer ce client de l'annuaire ? (ses chantiers ne sont pas supprimes)")) return; if(!CONFIG_DB.clientsMasques)CONFIG_DB.clientsMasques={}; CONFIG_DB.clientsMasques[key]=true; saveConfigDB(); toast('Client retire de l\'annuaire'); render(); }
+
 function initSwipeBack(){
   if(_swipeInit) return; _swipeInit=true;
   document.addEventListener('touchstart',function(e){ if(!e.touches||e.touches.length!==1) return; const t=e.touches[0]; _swX=t.clientX; _swY=t.clientY; _swT=Date.now(); },{passive:true});
@@ -7579,7 +7631,7 @@ function hubFab(){
 function hubPlaceholder(title,desc,extra){ return `<div class="card"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${esc(title)}</h2></div><p class="note" style="margin:0">${esc(desc)}</p>${extra||''}<p class="tag" style="margin-top:10px">🚧 En construction — bientôt disponible</p></div>`; }
 function hubReady(title,desc,extra){ return `<div class="card"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${esc(title)}</h2></div><p class="note" style="margin:0">${esc(desc)}</p>${extra||''}</div>`; }
 let CLIENTS_SUB='annuaire';
-function setClientsSub(x){ CLIENTS_SUB=x; render(); }
+
 function hubBody(hub,tab){
   if(hub==='dashboard'){
     if(tab==='argent') return viewDashArgent();
@@ -7951,7 +8003,7 @@ function factuDocRow(d){
     </div>
   </div>`;
 }
-function factuFilter(kind){ const inp=document.getElementById('fq_'+kind); const ql=((inp&&inp.value)||'').toLowerCase().trim(); const list=document.getElementById('list_'+kind); if(!list) return; Array.from(list.children).forEach(el=>{ const k=el.getAttribute('data-q')||''; el.style.display=(!ql||k.indexOf(ql)>=0)?'':'none'; }); }
+
 function delFactuDoc(id,pid){
   const c=CHANTIERS[id]; const d=c&&c.published&&c.published[pid]; if(!d) return;
   if(!confirm("Supprimer ce document ? Il sera aussi retiré de l'espace client.")) return;
@@ -8610,19 +8662,7 @@ function ereportingRows(all){
   });
   const f=tvaFactor(); return Object.values(map).map(r=>({...r,tva:r.ht*f,ttc:r.ht*(1+f)})).sort((a,b)=>a.key<b.key?1:-1);
 }
-function ereportingCard(all){
-  if(!perm('gerer_reglages')) return '';
-  const rows=ereportingRows(all);
-  const eur2=n=>n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-  let h=`<div class="card"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg> Récap e-reporting (HT + TVA par mois)</h2></div>`;
-  if(!rows.length){ h+=`<p class="note">Aucune facture publiée. Dès que tu publies des factures, le récap mensuel HT + TVA s'affiche ici, prêt à transmettre.</p></div>`; return h; }
-  const totHT=rows.reduce((s,r)=>s+r.ht,0);
-  h+=`<div class="kpis" style="margin-bottom:10px"><div class="kpi"><div class="big" style="font-size:20px">${eur2(totHT)}</div><div class="lbl">Total HT facturé</div></div><div class="kpi acc"><div class="big" style="font-size:20px">${eur2(totHT*tvaFactor())}</div><div class="lbl">${isFranchiseTva()?'TVA (non applicable)':('TVA collectée ('+tvaPct()+'%)')}</div></div></div>`;
-  rows.slice(0,3).forEach(r=>{ h+=`<div class="task-row"><span style="flex:1">${moisLong(r.m)} ${r.y} · ${r.n} fact.</span><span class="tag">${eur2(r.ht)} HT</span><b class="tag" style="color:var(--acc2);margin-left:8px">${eur2(r.tva)} TVA</b></div>`; });
-  h+=`<button class="btn ghost" style="width:100%;margin-top:10px" onclick="openEreportingExport()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Voir tout & exporter</button>`;
-  h+=`<p class="note" style="margin-top:8px;font-size:11px">Récap indicatif pour préparer ta déclaration de TVA / ton e-reporting. La transmission officielle se fait via ta plateforme agréée. ${isFranchiseTva()?'TVA non applicable (franchise en base, art. 293 B CGI).':('TVA estimée à '+tvaPct()+'%.')}</p></div>`;
-  return h;
-}
+
 function openEreportingExport(){
   if(!perm('gerer_reglages')){ toast("Réservé au patron."); return; }
   const rows=ereportingRows(Object.values(CHANTIERS));
@@ -9037,10 +9077,7 @@ const HUB_GUIDES={
     "Le guide de démarrage te dit ce qu'il te reste à régler pour tirer le maximum de l'app."
   ]}
 };
-function openHubGuide(h){
-  const g=HUB_GUIDES[h]; if(!g){ openMenu(); return; }
-  openModal(`<div class="grabber"></div><h2 style="margin:0 0 4px">${icone('help')} Guide - ${esc(g.t)}</h2><p class="note" style="margin:0 0 12px">Comment utiliser cet espace :</p>`+g.b.map(x=>`<div style="display:flex;gap:10px;margin-bottom:10px"><span style="color:var(--acc);font-weight:800">&bull;</span><span style="flex:1;font-size:13.5px;line-height:1.5">${esc(x)}</span></div>`).join('')+`<button class="btn primary" style="width:100%;margin-top:6px" onclick="closeModal()">Compris</button>`);
-}
+
 function pointageSwitchCard(){
   const on=pointageOn();
   return `<div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><b style="font-size:14.5px">Pointage des heures</b><div class="note" style="font-size:12px">${on?'Active - les equipes peuvent pointer leurs heures.':'Desactive.'}</div></div><label class="iosw"><input type="checkbox" ${on?'checked':''} onchange="setPointage(this.checked)"><span class="iosl"></span></label></div>`;
@@ -9100,6 +9137,57 @@ function markNotifSeen(){ lsSet('batisuivi_notif_seen', Date.now()); }
 function notifDismissed(){ try{ var v=lsGet('batisuivi_notif_dismissed',{}); return (v&&typeof v==='object')?v:{}; }catch(_){ return {}; } }
 var _NOTIF_LIST=[];
 function dismissNotifIdx(i){ var n=_NOTIF_LIST[i]; if(!n) return; try{ var d=notifDismissed(); d[n.key]=Math.max(d[n.key]||0, n.ts||0); lsSet('batisuivi_notif_dismissed', d); }catch(_){ } var el=document.getElementById('ntf_'+i); if(el){ el.style.transition='opacity .18s'; el.style.opacity='0'; setTimeout(function(){ if(el&&el.parentNode) el.parentNode.removeChild(el); },180); } }
+/* Ramene une date a des millisecondes, qu'elle soit deja un nombre
+   ou un texte ISO (comme signedAt). Sans ca, les comparaisons et le
+   tri donnent des resultats absurdes. */
+function notifTs(v, repli){
+  if(v==null || v==='') return repli||0;
+  if(typeof v==='number') return v;
+  var t=new Date(v).getTime();
+  return isNaN(t) ? (repli||0) : t;
+}
+/* Fenetre d'alerte : une echeance dans 5 jours n'est pas un evenement
+   qui vient de se produire. On date l'alerte au moment ou elle est
+   APPARUE — sinon elle se classe devant tout le reste et se declare
+   eternellement nouvelle, une date future etant toujours superieure
+   au dernier passage. */
+function notifDebutAlerte(echeance, joursAvant){
+  return (echeance||0) - (joursAvant||0)*86400000;
+}
+
+/* Ouvrir la conversation concernee, et pas la liste des messages. */
+function notifVersConv(cle){
+  try{
+    if(typeof isBoss==='function' && isBoss()){ goHub('equipe'); setHTab('messagerie'); }
+    else { setTab('messagerie'); }
+    openConv(cle);
+  }catch(_){ try{ setTab('messagerie'); }catch(__){ } }
+}
+
+/* Ouvrir le devis ou la facture, et pas la liste. */
+function notifVersDoc(id, pid, type){
+  try{
+    const c = CHANTIERS[id];
+    const d = c && c.published && c.published[pid];
+    if(typeof isBoss==='function' && isBoss()){
+      goHub('facturation');
+      setFTab(type==='facture' ? 'factures' : 'devis');
+      if(type==='facture' && typeof setFFactSub==='function') setFFactSub('impayees');
+    }
+    if(d) openDocWindow(d);
+    else if(c) openChantier(id);          /* le document n'existe plus */
+    else toast("Ce document n'existe plus.");
+  }catch(_){ }
+}
+
+/* Ouvrir le chantier concerne, et pas la liste des echeances. */
+function notifVersChantier(id){
+  try{
+    if(!CHANTIERS[id]){ toast("Ce chantier n'existe plus."); return; }
+    openChantier(id);
+  }catch(_){ }
+}
+
 function buildNotifs(){
   var out=[]; var seen=notifSeen(); var now=Date.now(); var myn=(ME&&ME.nom)||''; var me=(typeof myUid==='function')?myUid():'';
   // Récap du matin : une synthèse quotidienne (patron), calculée à partir des 24 dernières heures
@@ -9108,7 +9196,7 @@ function buildNotifs(){
       var since=now-24*3600000; var nDevis=0,nRetard=0,nEch=0,nFin=0,nFrais=0;
       Object.values(CHANTIERS).forEach(function(c){ if(!c) return;
         if(c.published) Object.values(c.published).forEach(function(d){
-          if(d&&d.type==='devis'&&d.signature&&((d.signedAt||d.ts||0)>=since)) nDevis++;
+          if(d&&d.type==='devis'&&d.signature&&(notifTs(d.signedAt, d.ts||0)>=since)) nDevis++;
           if(d&&d.type==='facture'&&!d.paye&&!d.annulee){ var rr=(typeof factureRetard==='function')?factureRetard(d):0; if(rr>0){ nRetard++; } else { var e=(typeof factureEcheance==='function')?factureEcheance(d):0; if(e){ var jj=Math.ceil((e-now)/86400000); if(jj>=0&&jj<=5) nEch++; } } }
         });
         if(c.dateFin&&!c.archived&&c.statut!=='cloture'){ var fin=new Date(c.dateFin+'T12:00:00').getTime(); if(!isNaN(fin)){ var dd=Math.round((fin-now)/86400000); if(dd>=0&&dd<=7) nFin++; } }
@@ -9128,16 +9216,16 @@ function buildNotifs(){
       }
     }
   }catch(_){ }
-  try{ var un=totalChatUnread(); if(un>0){ var lg=chatLast('group'); var mts=(lg&&lg.ts)||now; out.push({key:'msg:group', ts:mts, ic:'message', nw:mts>seen, t:"Messages \u00e9quipe", s:un+" message"+(un>1?'s':'')+" non lu"+(un>1?'s':''), go:"goHub('equipe');setHTab('messagerie')"}); } }catch(_){ }
+  try{ var un=totalChatUnread(); if(un>0){ var lg=chatLast('group'); var mts=(lg&&lg.ts)||now; out.push({key:'msg:group', ts:mts, ic:'message', nw:mts>seen, t:"Messages \u00e9quipe", s:un+" message"+(un>1?'s':'')+" non lu"+(un>1?'s':''), go:"notifVersConv('group')"}); } }catch(_){ }
   Object.keys(CHANTIERS).forEach(function(id){ var c=CHANTIERS[id]; if(!c) return;
-    if(c.messages){ var seenC=((typeof MSG_SEEN!=='undefined'&&MSG_SEEN)?MSG_SEEN[id]:0)||0; var arr=Object.values(c.messages).filter(function(m){ return m&&m.from!==me&&m.from!=='patron'; }).sort(function(a,b){return (a.ts||0)-(b.ts||0);}); var unc=arr.filter(function(m){ return (m.ts||0)>seenC; }).length; if(unc>0){ var lts=arr.length?(arr[arr.length-1].ts||now):now; out.push({key:'msgc:'+id, ts:lts, ic:'message', nw:lts>seen, t:"Message client", s:(c.nom||"Chantier")+" \u00b7 "+unc+" non lu"+(unc>1?'s':''), go:"goHub('chantiers')"}); } }
+    if(c.messages){ var seenC=((typeof MSG_SEEN!=='undefined'&&MSG_SEEN)?MSG_SEEN[id]:0)||0; var arr=Object.values(c.messages).filter(function(m){ return m&&m.from!==me&&m.from!=='patron'; }).sort(function(a,b){return (a.ts||0)-(b.ts||0);}); var unc=arr.filter(function(m){ return (m.ts||0)>seenC; }).length; if(unc>0){ var lts=arr.length?(arr[arr.length-1].ts||now):now; out.push({key:'msgc:'+id, ts:lts, ic:'message', nw:lts>seen, t:"Message client", s:(c.nom||"Chantier")+" \u00b7 "+unc+" non lu"+(unc>1?'s':''), go:"notifVersConv('client:"+id+"')"}); } }
     if(c.published){ Object.keys(c.published).forEach(function(pid){ var d=c.published[pid];
-      if(d&&d.type==='devis'&&d.signature){ var ts=d.signedAt||d.ts||0; var dj=(typeof devisConverti==='function')&&devisConverti({id:id,factureId:d.factureId}); out.push({key:'devis:'+id+':'+pid, ts:ts, ic:'check', nw:ts>seen, t:"Devis sign\u00e9", s:(c.nom||"Chantier")+" \u00b7 "+(d.num||'')+(dj?"":" \u00b7 \u00e0 transformer en facture"), go:"goHub('facturation');setFTab('devis')"}); }
-      if(d&&d.type==='facture'&&!d.paye){ var r=(typeof factureRetard==='function')?factureRetard(d):0; if(r>0){ out.push({key:'factret:'+id+':'+pid, ts:factureEcheance(d), nw:false, ic:'alert', t:"Facture en retard", s:(d.num||'')+" \u00b7 "+(c.nom||"Chantier")+" \u00b7 "+r+" j de retard", go:"setFFactSub('impayees');goHub('facturation');setFTab('factures')"}); }
-        else if(!d.annulee){ var ech=(typeof factureEcheance==='function')?factureEcheance(d):0; if(ech){ var jav=Math.ceil((ech-now)/86400000); if(jav>=0&&jav<=5){ out.push({key:'factech:'+id+':'+pid, ts:ech, nw:ech>seen, ic:'clock', t:"Facture à échéance", s:(d.num||'')+" \u00b7 "+(c.nom||"Chantier")+" \u00b7 "+(jav===0?"échoit aujourd'hui":("dans "+jav+" j")), go:"setFFactSub('impayees');goHub('facturation');setFTab('factures')"}); } } } }
+      if(d&&d.type==='devis'&&d.signature){ var ts=notifTs(d.signedAt, d.ts||0); var dj=(typeof devisConverti==='function')&&devisConverti({id:id,factureId:d.factureId}); out.push({key:'devis:'+id+':'+pid, ts:ts, ic:'check', nw:ts>seen, t:"Devis sign\u00e9", s:(c.nom||"Chantier")+" \u00b7 "+(d.num||'')+(dj?"":" \u00b7 \u00e0 transformer en facture"), go:"notifVersDoc('"+id+"','"+pid+"','devis')"}); }
+      if(d&&d.type==='facture'&&!d.paye){ var r=(typeof factureRetard==='function')?factureRetard(d):0; if(r>0){ var echR=factureEcheance(d); out.push({key:'factret:'+id+':'+pid, ts:echR, nw:echR>seen, ic:'alert', t:"Facture en retard", s:(d.num||'')+" \u00b7 "+(c.nom||"Chantier")+" \u00b7 "+r+" j de retard", go:"notifVersDoc('"+id+"','"+pid+"','facture')"}); }
+        else if(!d.annulee){ var ech=(typeof factureEcheance==='function')?factureEcheance(d):0; if(ech){ var jav=Math.ceil((ech-now)/86400000); if(jav>=0&&jav<=5){ var debEch=notifDebutAlerte(ech,5); out.push({key:'factech:'+id+':'+pid, ts:debEch, nw:debEch>seen, ic:'clock', t:"Facture à échéance", s:(d.num||'')+" \u00b7 "+(c.nom||"Chantier")+" \u00b7 "+(jav===0?"échoit aujourd'hui":("dans "+jav+" j")), go:"notifVersDoc('"+id+"','"+pid+"','facture')"}); } } } }
     }); }
     if(c.frais){ Object.keys(c.frais).forEach(function(k){ var f=c.frais[k]; if(f&&f.by&&f.by!==myn){ out.push({key:'frais:'+id+':'+k, ts:f.ts||0, ic:'receipt', nw:(f.ts||0)>seen, t:"Note de frais", s:(f.montant||0)+" \u20ac \u00b7 "+f.by, go:"goHub('equipe');setHTab('frais')"}); } }); }
-    if(c.dateFin&&!c.archived&&c.statut!=='cloture'){ var fin=new Date(c.dateFin+'T12:00:00').getTime(); if(!isNaN(fin)){ var days=Math.round((fin-now)/86400000); if(days<=7){ out.push({key:'deadline:'+id, ts:fin, ic:'clock', nw:false, t:(days<0?"Chantier en retard":"\u00c9ch\u00e9ance proche"), s:(c.nom||"Chantier")+(days<0?(" \u00b7 en retard de "+(-days)+" j"):(days===0?" \u00b7 aujourd'hui":(" \u00b7 dans "+days+" j"))), go:"goHub('planning');setHTab('echeances')"}); } } }
+    if(c.dateFin&&!c.archived&&c.statut!=='cloture'){ var fin=new Date(c.dateFin+'T12:00:00').getTime(); if(!isNaN(fin)){ var days=Math.round((fin-now)/86400000); if(days<=7){ var debFin=notifDebutAlerte(fin,7); out.push({key:'deadline:'+id, ts:debFin, ic:'clock', nw:debFin>seen, t:(days<0?"Chantier en retard":"\u00c9ch\u00e9ance proche"), s:(c.nom||"Chantier")+(days<0?(" \u00b7 en retard de "+(-days)+" j"):(days===0?" \u00b7 aujourd'hui":(" \u00b7 dans "+days+" j"))), go:"notifVersChantier('"+id+"')"}); } } }
   });
   // Alerte pointage : employés sans pointage aujourd'hui (jours ouvrés, après 10h, patron/chef seulement)
   try{
@@ -9171,6 +9259,49 @@ function openNotifs(){
     +'</div>'; }).join(''); }
   openModal(h);
 }
+/* Chacun peut corriger son prenom et son nom. Ils ne servent qu'a
+   l'affichage : rien de ce qui est deja enregistre (messages, photos,
+   pointages) n'est renomme retroactivement. */
+function openMonProfil(){
+  if(!ME){ toast("Connecte-toi d'abord."); return; }
+  const p=esc((ME.prenom||'').trim());
+  const nf=esc((ME.nomFamille||'').trim());
+  openModal(`<div class="grabber"></div>
+    <h2 style="margin-bottom:4px">Mon profil</h2>
+    <p class="note" style="margin-bottom:12px">C'est ce prénom qui s'affichera en haut de l'application et à côté de tes messages.</p>
+    <label>Prénom</label>
+    <input id="mp_prenom" maxlength="30" value="${p}" placeholder="ex : Lenny">
+    <label style="margin-top:8px">Nom de famille</label>
+    <input id="mp_nom" maxlength="40" value="${nf}" placeholder="ex : Imbault">
+    ${nomEstMail(ME)?`<p class="note" style="margin-top:10px;color:var(--warn);font-size:11.5px">
+      Aujourd'hui l'application affiche « ${esc(ME.nom)} », qui vient de ton adresse mail.</p>`:''}
+    <button class="btn primary" style="width:100%;margin-top:14px" onclick="saveMonProfil()">Enregistrer</button>
+    <button class="btn ghost" style="width:100%;margin-top:6px" onclick="closeModal()">Annuler</button>
+    <div id="mp_err" class="err"></div>`);
+  setTimeout(function(){ const e=document.getElementById('mp_prenom'); if(e) e.focus(); },60);
+}
+
+function saveMonProfil(){
+  const pr=(val('mp_prenom')||'').trim();
+  const nf=(val('mp_nom')||'').trim();
+  const er=document.getElementById('mp_err');
+  if(!pr){ if(er){ er.style.display='block'; er.textContent="Le prénom ne peut pas être vide."; } return; }
+  const u=myUid();
+  if(!u || !TEAM[u]){ toast("Profil introuvable."); return; }
+
+  ME.prenom=pr; ME.nomFamille=nf;
+  /* On garde « nom » a jour : c'est lui qui est recopie dans les
+     messages et les photos a chaque nouvelle ecriture. */
+  ME.nom=[pr,nf].filter(Boolean).join(' ');
+  TEAM[u]=ME; lsSet('cache_me',ME); lsSet('cache_team',TEAM);
+
+  Promise.resolve(BS.ecrire('team/'+u, ME)).then(function(){
+    toast("Profil enregistré ✅"); closeModal(); render();
+  }).catch(function(e){
+    toast((e&&e.message)||"Enregistrement impossible.");
+  });
+}
+
 function openMenu(){
   const _hg=(typeof HUB_GUIDES!=='undefined')?(HUB?HUB_GUIDES[HUB]:HUB_GUIDES.accueil):null;
   const myPhoto=(ME&&ME.photo)?`<img src="${ME.photo}" alt="">`:esc(initials(ME&&ME.nom));
@@ -9184,14 +9315,15 @@ function openMenu(){
     <h3 style="font-size:14px;margin:20px 0 8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.5c2.5 0 4.5-2 4.5-4.5C22 6 17.5 2 12 2Z"/></svg> Couleur de l'app</h3>
     ${themeSwatches(40)}
     ${_hg?`<h3 style="font-size:14px;margin:20px 0 8px">${icone('help')} Guide - ${esc(_hg.t)}</h3>`+_hg.b.map(x=>`<div style="display:flex;gap:9px;margin-bottom:8px;align-items:flex-start"><span style="color:var(--acc);font-weight:800;line-height:1.4">&bull;</span><span style="flex:1;font-size:13px;line-height:1.45">${esc(x)}</span></div>`).join(''):''}
-    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeModal();setTimeout(openMesFrais,80)">${icone('receipt','16px')} Mes notes de frais${(()=>{ const a=mesFrais().filter(f=>fraisStatut(f)==='attente').length; return a?` <span class="pill" style="color:var(--warn);margin-left:6px">${a} en attente</span>`:''; })()}</button>
+    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeModal();setTimeout(openMonProfil,80)">${icone('user','16px')} Mon profil</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal();setTimeout(openMesFrais,80)">${icone('receipt','16px')} Mes notes de frais${(()=>{ const a=mesFrais().filter(f=>fraisStatut(f)==='attente').length; return a?` <span class="pill" style="color:var(--warn);margin-left:6px">${a} en attente</span>`:''; })()}</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal();setTimeout(openAide,80)">${icone('help','16px')} Aide & support</button>
     <button class="btn danger" style="width:100%;margin-top:8px" onclick="teamSignOut()">${DEV_ACCESS?'↩ Revenir à l\'espace dev':'Se déconnecter'}</button>
     <p class="note" style="text-align:center;margin-top:10px;font-size:11px">${esc(coName())} · Taloche · ${APP_VERSION}</p>`);
 }
-function menuOpen(){ return !!document.getElementById('menuModalMark'); }
+
 /* ===== Paramètres de facturation (patron) ===== */
-function setFactuOn(v){ CONFIG_DB.factuOff=!v; saveConfigDB(); openFacturationSettings(); }
+
 function setMeteoOn(v){ CONFIG_DB.meteoOff=!v; saveConfigDB(); render(); toast(v?'Météo affichée sur le tableau de bord':'Météo masquée'); }
 
 /* ============ Guide de démarrage ============ */
@@ -9619,48 +9751,6 @@ async function lancerDiagnostic(){
   toast(ko?("Diagnostic terminé — "+ko+" point(s) à corriger"):"Diagnostic terminé — tout est vert ✅");
 }
 function diagPastille(lvl){ return lvl==='ok'?'🟢':(lvl==='warn'?'🟠':'🔴'); }
-function diagCard(){
-  if(!isDevSpace()) return '';
-  const cfg=(typeof FIREBASE_CONFIG!=='undefined')?FIREBASE_CONFIG:{};
-  const iaOk=DIAG&&DIAG.fonctions.find(f=>f.k==='assistantBatiSuivi'&&f.lvl==='ok');
-  let h=`<div class="card" style="border-color:var(--acc2)">
-    <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">🩺 Santé de cette instance</h2></div>
-    <div class="task-row"><span style="flex:1">Base</span><b style="font-size:12.5px">${useFB?esc(cfg.projectId||'?'):'mode local'}</b></div>
-    <div class="task-row"><span style="flex:1">Région</span><b style="font-size:12.5px">${useFB?(String(cfg.databaseURL||'').indexOf('europe-west1')>=0?'europe-west1 ✓':'⚠️ pas europe-west1'):'—'}</b></div>
-    <div class="task-row"><span style="flex:1">Version de l'app</span><b style="font-size:12.5px">${esc(APP_VERSION)}</b></div>
-    <button class="btn primary" style="width:100%;margin-top:10px" ${DIAG_BUSY?'disabled style="opacity:.6;width:100%;margin-top:10px"':''} onclick="lancerDiagnostic()">${DIAG_BUSY?'⏳ Vérification en cours…':(DIAG?'↻ Relancer le diagnostic':'🩺 Vérifier cette instance')}</button>`;
-
-  if(DIAG){
-    const r=DIAG.regles||{};
-    h+=`<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
-      <p class="tag" style="margin:0 0 6px">Règles de sécurité</p>
-      <div class="member-row">
-        <span style="width:26px;flex:0 0 26px;font-size:15px;text-align:center">${diagPastille(r.lvl)}</span>
-        <span style="flex:1;min-width:0"><small style="font-size:12px;line-height:1.4;color:${r.lvl==='ok'?'var(--txt)':(r.lvl==='warn'?'var(--warn)':'var(--danger)')}">${esc(r.msg||'')}</small></span>
-      </div>
-    </div>
-    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
-      <p class="tag" style="margin:0 0 6px">Cloud Functions (${DIAG.fonctions.filter(f=>f.lvl==='ok').length}/${DIAG.fonctions.length} OK)</p>
-      ${DIAG.fonctions.map(f=>`<div class="member-row">
-        <span style="width:26px;flex:0 0 26px;font-size:15px;text-align:center">${diagPastille(f.lvl)}</span>
-        <span style="flex:1;min-width:0"><b style="font-size:12.5px;display:block">${esc(f.l)}</b>
-          <small class="note" style="font-size:11px;color:${f.lvl==='ok'?'var(--muted)':(f.lvl==='warn'?'var(--warn)':'var(--danger)')}">${esc(f.msg)} · ${f.ms} ms</small></span>
-      </div>`).join('')}
-    </div>
-    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
-      <div class="member-row">
-        <span style="width:26px;flex:0 0 26px;font-size:15px;text-align:center">${iaOk?'🟢':'🟠'}</span>
-        <span style="flex:1;min-width:0"><b style="font-size:12.5px;display:block">Secret ANTHROPIC_API_KEY</b>
-          <small class="note" style="font-size:11px">${iaOk?"présent (les fonctions IA n'auraient pas pu être déployées sans lui)":"à vérifier : la fonction IA ne répond pas"}</small></span>
-      </div>
-    </div>
-    <p class="note" style="margin-top:10px;font-size:11px">Diagnostic du ${esc(new Date(DIAG.ts).toLocaleString('fr-FR'))}. Les appels de test ne consomment aucun crédit IA (ils sont refusés avant d'atteindre le modèle).</p>`;
-  } else {
-    h+=`<p class="note" style="margin-top:8px;font-size:11px">Teste en une fois : les règles de sécurité (base bien fermée ?), les 7 Cloud Functions, et le secret IA. À faire après chaque déploiement.</p>`;
-  }
-  h+=`</div>`;
-  return h;
-}
 
 /* ============================================================
  * ④ BANNIÈRE D'ANNONCE — poussée aux artisans depuis l'espace dev
@@ -9833,19 +9923,6 @@ function appliquerPack(){
   _PACK=null; closeModal(); renderDev();
   toast(cnt+" réglage(s) appliqué(s) ✅");
 }
-function packCard(){
-  if(!isDevSpace()) return '';
-  const dispo=REGLAGES_PORTABLES.filter(x=>CONFIG_DB[x.k]!==undefined && CONFIG_DB[x.k]!==null).length;
-  return `<div class="card">
-    <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${icone('layers')} Pack de réglages</h2></div>
-    <p class="note" style="margin:0 0 10px;font-size:12px">Copie la configuration d'un client à l'autre : modèles, étapes, rôles, TVA, préfixes, espace client, couleur… <b>Sans jamais toucher à son identité.</b></p>
-    <div class="task-row"><span style="flex:1">Réglages exportables ici</span><b>${dispo} / ${REGLAGES_PORTABLES.length}</b></div>
-    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="exportReglages()">${icone('save','16px')} Exporter mes réglages</button>
-    <input type="file" id="pack_file" accept="application/json,.json" style="display:none" onchange="importReglagesPick(this)">
-    <button class="btn primary" style="width:100%;margin-top:8px" onclick="document.getElementById('pack_file').click()">${icone('download','16px')} Appliquer un pack</button>
-    <p class="note" style="margin-top:8px;font-size:11px"><b>Jamais copiés :</b> nom, logo, SIREN, adresse, IBAN, assurance, lien d'avis, numéros de documents, fiche client. Le nouveau client garde son identité.</p>
-  </div>`;
-}
 
 /* ============================================================
  * FICHE CLIENT & RENTABILITÉ (espace dev)
@@ -9862,42 +9939,6 @@ function saveDevClient(){
     notes:(val('dc_notes')||'').trim().slice(0,600)
   };
   CONFIG_DB.devClient=d; saveConfigDB(); renderDev(); toast("Fiche client enregistrée ✅");
-}
-function devClientCard(){
-  if(!isDevSpace()) return '';
-  const d=devClient();
-  const coutIA=(IA_USAGE && IA_USAGE.total)?(IA_USAGE.total.euros||0):null;
-  const infra=(d.infra!==undefined && d.infra!==null)?d.infra:1;
-  const prix=d.prix||0;
-  const marge=(coutIA===null)?null:(prix-coutIA-infra);
-  const pctMarge=(marge!==null && prix>0)?Math.round(marge/prix*100):null;
-  const col=(marge===null)?'var(--muted)':(marge<0?'var(--danger)':(pctMarge!==null && pctMarge<40?'var(--warn)':'var(--ok)'));
-  let jEch=null;
-  if(d.echeance){ const t=new Date(d.echeance+'T12:00:00').getTime(); if(!isNaN(t)) jEch=Math.round((t-Date.now())/86400000); }
-  return `<div class="card">
-    <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">🧾 Fiche client & rentabilité</h2></div>
-    <p class="note" style="margin:0 0 10px;font-size:12px">Ce que ce client te rapporte, et ce qu'il te coûte. Visible uniquement d'ici.</p>
-
-    ${prix>0?`<div class="kpis" style="margin:0 0 10px">
-      <div class="kpi acc"><div class="big" style="font-size:20px">${eurF2(prix)}</div><div class="lbl">Abonnement / mois</div></div>
-      <div class="kpi"><div class="big" style="font-size:20px">${coutIA===null?'—':eurF2(coutIA+infra)}</div><div class="lbl">Coût réel / mois</div></div>
-      <div class="kpi ${marge!==null&&marge<0?'warn':''}"><div class="big" style="font-size:20px;color:${col}">${marge===null?'—':eurF2(marge)}</div><div class="lbl">Marge${pctMarge!==null?(' · '+pctMarge+'%'):''}</div></div>
-      <div class="kpi ${(jEch!==null&&jEch<=7)?'warn':''}"><div class="big" style="font-size:20px">${jEch===null?'—':(jEch<0?('J+'+(-jEch)):('J-'+jEch))}</div><div class="lbl">Prochaine échéance</div></div>
-    </div>
-    ${coutIA===null?`<p class="note" style="margin:0 0 10px;font-size:11px;color:var(--warn)">Lance « Voir ma consommation IA » ci-dessous pour calculer la marge réelle.</p>`:''}
-    ${marge!==null&&marge<0?`<p class="note" style="margin:0 0 10px;font-size:11.5px;color:var(--danger)"><b>⚠️ Ce client te coûte plus qu'il ne te rapporte.</b> Baisse son plafond IA, ou revois son tarif.</p>`:''}
-    ${(jEch!==null&&jEch<0)?`<p class="note" style="margin:0 0 10px;font-size:11.5px;color:var(--danger)"><b>⚠️ Échéance dépassée de ${-jEch} jour(s).</b></p>`:''}
-    `:''}
-
-    <div class="row"><div><label>Nom du client</label><input id="dc_nom" value="${esc(d.nom||'')}" placeholder="ex : Menuiserie Da Silva"></div>
-      <div><label>Client depuis</label><input id="dc_depuis" type="date" value="${esc(d.depuis||'')}"></div></div>
-    <div class="row" style="margin-top:10px"><div><label>Abonnement (€/mois)</label><input id="dc_prix" type="number" inputmode="decimal" step="1" min="0" value="${prix||''}" placeholder="49"></div>
-      <div><label>Coût infra estimé (€/mois)</label><input id="dc_infra" type="number" inputmode="decimal" step="0.5" min="0" value="${infra}" placeholder="1"></div></div>
-    <div style="margin-top:10px"><label>Prochaine échéance</label><input id="dc_echeance" type="date" value="${esc(d.echeance||'')}"></div>
-    <div style="margin-top:10px"><label>Notes internes</label><textarea id="dc_notes" rows="3" placeholder="ex : sensible aux avis Google, veut le module rentabilité, paie par virement le 5…">${esc(d.notes||'')}</textarea></div>
-    <button class="btn primary" style="width:100%;margin-top:10px" onclick="saveDevClient()">${icone('save','16px')} Enregistrer la fiche</button>
-    <p class="note" style="margin-top:8px;font-size:11px">Le coût infra est une estimation à ta main (Firebase, Cloud Functions, stockage). Le coût IA, lui, est mesuré réellement.</p>
-  </div>`;
 }
 
 /* ============================================================
@@ -9994,29 +10035,7 @@ function deployEtapes(){
      d:"Connexion équipe (1er compte = patron), accès client par code, dictée IA."}
   ];
 }
-function deployCard(){
-  if(!isDevSpace()) return '';
-  const e=deployEtapes();
-  const ok=e.filter(x=>x.ok).length;
-  const pct=Math.round(ok/e.length*100);
-  const col=pct===100?'var(--ok)':(pct>=70?'var(--warn)':'var(--danger)');
-  return `<div class="card" style="border-color:${col}">
-    <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">📋 Checklist « nouveau client »</h2></div>
-    <p class="note" style="margin:0 0 10px;font-size:12px">Les étapes à ne jamais oublier en livrant une instance. Les 🔒 se cochent toutes seules après un diagnostic.</p>
-    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
-      <div style="font-family:'Sora';font-size:26px;font-weight:800;color:${col}">${pct}%</div>
-      <span class="note" style="font-size:12px">${ok}/${e.length} étapes${pct===100?' — prêt à livrer 🎉':''}</span>
-    </div>
-    <div class="progress" style="margin-bottom:12px"><span style="width:${pct}%;background:${col}"></span></div>
-    ${e.map(x=>`<div class="member-row" style="${x.ok?'opacity:.65':''}">
-      <span style="width:26px;flex:0 0 26px;font-size:15px;text-align:center;color:${x.ok?'var(--ok)':'var(--muted)'}">${x.ok?'✓':'○'}</span>
-      <span style="flex:1;min-width:0"><b style="font-size:13px;display:block;${x.ok?'text-decoration:line-through':''}">${esc(x.l)}${x.auto?' <span class="tag" style="font-size:9.5px">auto</span>':''}</b>
-        <small class="note" style="font-size:11px">${esc(x.d)}</small></span>
-      ${x.auto?'':`<div class="checkbox ${x.ok?'on':''}" onclick="devCheckToggle('${x.k}')">${x.ok?'✓':''}</div>`}
-    </div>`).join('')}
-    <p class="note" style="margin-top:10px;font-size:11px">Rappel : le secret <b>ANTHROPIC_API_KEY</b> doit exister <b>avant</b> le déploiement des fonctions. Une fonction en 403 / 0 ms = permission Cloud Run manquante → supprime-la et redéploie-la.</p>
-  </div>`;
-}
+
 function saveIaPlafond(){
   if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
   const v=parseFloat((val('ia_cap')||'').replace(',','.'));
@@ -10348,22 +10367,7 @@ function openHelp(){
 }
 /* note de frais (tout membre envoie, seul le boss voit) */
 let _pendingNote=null;
-function addNoteFrais(){
-  const inp=document.getElementById('photoFile'); inp.value='';
-  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
-    const r=new FileReader(); r.onload=e=>{ const img=new Image(); img.onload=()=>{
-      const cv=document.createElement('canvas'); const S=1100; let w=img.width,hh=img.height;
-      if(w>hh){ if(w>S){hh=hh*S/w;w=S;} } else { if(hh>S){w=w*S/hh;hh=S;} }
-      cv.width=w;cv.height=hh; cv.getContext('2d').drawImage(img,0,0,w,hh);
-      _pendingNote={url:cv.toDataURL('image/jpeg',0.72)};
-      openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px">Note de frais</h2>
-        <img src="${_pendingNote.url}" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover">
-        <label>Montant (€) — optionnel</label><input id="nf_montant" type="number" inputmode="decimal" step="0.01" placeholder="ex: 78.50">
-        <label>Description</label><textarea id="nf_desc" placeholder="ex: Plein gasoil camion"></textarea>
-        <button class="btn primary" style="width:100%;margin-top:10px" onclick="saveNoteFraisPhoto()">Envoyer au patron</button>`);
-    }; img.src=e.target.result; }; r.readAsDataURL(f); };
-  inp.click();
-}
+
 function saveNoteFraisPhoto(){
   const p=_pendingNote; if(!p) return; const desc=val('nf_desc');
   const mtRaw=val('nf_montant'); const mt=mtRaw?parseFloat(mtRaw.replace(',','.')):0;
@@ -11032,17 +11036,7 @@ function delMemberDoc(u,k){
   saveTeam(u); openMemberNotes(u);
 }
 /* Habilitations valides d'un chantier (pour l'espace client) */
-function chantierHabilitations(c){
-  const out={};
-  Object.keys((c&&c.assignes)||{}).forEach(u=>{
-    memberDocs(u).forEach(d=>{
-      const t=docType(d.type); if(!t.hab||!t.pub) return;
-      const s=docStatut(d); if(s.lvl==='danger') return;
-      out[t.pub]=true;
-    });
-  });
-  return Object.keys(out);
-}
+
 /* ---- Mes notes de frais : accessible à toute l'équipe ---- */
 function mesFrais(){
   const nom=(ME&&ME.nom)||'';
@@ -11088,7 +11082,7 @@ function openMesFrais(){
   h+=`<button class="btn ghost" style="width:100%;margin-top:12px" onclick="closeModal()">Fermer</button>`;
   openModal(h);
 }
-function nbNotes(u){ return NOTES_FRAIS[u]?Object.keys(NOTES_FRAIS[u]).length:0; }
+
 function nbNotesUnseen(u){ const seen=NOTES_SEEN[u]||0; const o=NOTES_FRAIS[u]||{}; return Object.keys(o).filter(k=>((o[k].ts)||0)>seen).length; }
 function markNotesSeen(u){ NOTES_SEEN[u]=Date.now(); lsSet('notes_seen',NOTES_SEEN); pushSeen('notes',NOTES_SEEN); }
 function openMemberNotes(u){
@@ -11215,7 +11209,7 @@ function themeSwatches(sz){ sz=sz||40;
     +`<button type="button" onclick="setMode('sombre')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding:11px 12px;border-radius:13px;border:2px solid ${appMode()==='sombre'?'var(--acc)':'var(--line)'};background:var(--card2);color:var(--txt);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer"><span style="width:20px;height:20px;flex:0 0 20px;border-radius:6px;background:linear-gradient(135deg,#16293c,#0a1522);border:1px solid #26364a"></span>Sombre</button></div>`;
   return h;
 }
-function setDefaultColor(t){ CONFIG_DB.couleurDefaut=t; saveConfigDB(); toast("Couleur par défaut enregistrée"); }
+
 function pointageOn(){ return CONFIG_DB.pointage!==undefined ? !!CONFIG_DB.pointage : !!CONFIG.POINTAGE_ACTIF; }
 function chantierCost(c){ if(!c.pointages) return 0; return Object.keys(c.pointages).reduce((s,u)=>s+(totalHeures(c.pointages[u])/3600000)*memberCout(u),0); }
 function chantierHours(c){ if(!c.pointages) return 0; return Object.values(c.pointages).reduce((s,arr)=>s+totalHeures(arr),0)/3600000; }
@@ -12655,29 +12649,6 @@ function applyModele(id,key){ const t=modeles()[key]; const c=CHANTIERS[id]; if(
 }
 
 /* ============== statistiques équipe ============== */
-function openTeamStats(){
-  const fmtH=ms=>{ const h=ms/3600000,hh=Math.floor(h),mm=Math.round((h-hh)*60); return mm?`${hh}h${String(mm).padStart(2,'0')}`:`${hh}h`; };
-  const rows=Object.keys(TEAM).map(u=>{
-    let ms=0,chs=0,frais=0;
-    Object.values(CHANTIERS).forEach(c=>{ if(c.assignes&&c.assignes[u]&&!c.archived) chs++; if(c.pointages&&c.pointages[u]) ms+=totalHeures(c.pointages[u]); });
-    const nf=NOTES_FRAIS[u]; if(nf) Object.values(nf).forEach(n=>frais+=(parseFloat(n.montant)||0));
-    const cout=memberCout(u); const coutTot=cout>0?Math.round((ms/3600000)*cout):0;
-    return {u,nom:(TEAM[u]||{}).nom||'?',role:TEAM[u].role,ms,chs,frais,cout,coutTot};
-  }).sort((a,b)=>b.ms-a.ms);
-  const totCout=rows.reduce((s,r)=>s+r.coutTot,0);
-  let h=`<div class="grabber"></div><h2 style="margin-bottom:4px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></svg> Statistiques équipe</h2>
-    <p class="note" style="margin-bottom:12px">Heures pointées, chantiers actifs assignés, notes de frais et coût de la main d'œuvre par personne.</p>`;
-  if(totCout>0){ h+=`<div class="kpis" style="margin-bottom:12px"><div class="kpi acc"><div class="big" style="font-size:22px">${eurFmt(totCout)}</div><div class="lbl">Coût main d'œuvre total</div></div></div>`; }
-  rows.forEach(r=>{ h+=`<div class="card" style="padding:12px 14px;margin-bottom:8px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="flex:1">${esc(r.nom)}</b><span class="pill">${esc(roleLabel(r.role))}</span></div>
-    <div class="kpis" style="margin:0"><div class="kpi"><div class="big" style="font-size:18px">${fmtH(r.ms)}</div><div class="lbl">Heures</div></div>
-      <div class="kpi"><div class="big" style="font-size:18px">${r.chs}</div><div class="lbl">Chantiers</div></div>
-      <div class="kpi acc"><div class="big" style="font-size:18px">${r.cout>0?eurFmt(r.coutTot):'—'}</div><div class="lbl">Coût${r.cout>0?` (${r.cout}€/h)`:''}</div></div>
-      <div class="kpi"><div class="big" style="font-size:18px">${eurFmt(r.frais)}</div><div class="lbl">Notes de frais</div></div></div>
-  </div>`; });
-  h+=`<p class="note" style="margin-top:8px;font-size:11px">Le coût = heures pointées × coût horaire (à définir dans la fiche de chaque membre). Le pointage s'active dans le menu <svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>.</p>`;
-  openModal(h);
-}
 
 /* ============== bannière "ajouter à l'écran d'accueil" ============== */
 function isStandalone(){ return (window.navigator.standalone===true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); }

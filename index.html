@@ -1844,6 +1844,7 @@ function render(){
   if(useFB && !AUTH_READY){ navEl.classList.add('hidden'); app.innerHTML=splash(); return; }
   if(SCREEN==='entry'){ navEl.classList.add('hidden'); return renderEntry(); }
   if(SCREEN==='dev'){ navEl.classList.add('hidden'); return renderDev(); }
+  if(SCREEN==='parc'){ navEl.classList.add('hidden'); return renderParc(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
     if(useFB && !AUTH_USER){ navEl.classList.add('hidden'); return renderTeamAuth(); }
@@ -1893,9 +1894,127 @@ function goClientLogin(){ SCREEN='client'; CLIENT=null; render(); }
 function goTeam(){ SCREEN='team'; render(); }
 function backToEntry(){ DEV_ACCESS=false; SCREEN='entry'; render(); toTop(); }
 
+/* ====================== PARC CLIENT (Massilia) ====================== */
+/* Ecran de pilotage de TOUS les clients Taloche. Il ne lit rien tout
+   seul : tout vient de la fonction serveur « admin ». */
+let PARC=null, PARC_ETAT='vide', PARC_ERR='';   // vide | chargement | pret | erreur
+
+function parcOuvrir(){ SCREEN='parc'; PARC=null; PARC_ETAT='chargement'; PARC_ERR=''; render(); toTop(); parcCharger(); }
+function parcRetour(){ SCREEN='dev'; render(); toTop(); }
+
+function parcCharger(){
+  PARC_ETAT='chargement'; PARC_ERR='';
+  if(SCREEN==='parc') renderParc();
+  adminApiCall('parc',{}).then(function(r){
+    PARC = (r && r.entreprises) || [];
+    PARC_ETAT='pret';
+    if(SCREEN==='parc') renderParc();
+  }).catch(function(e){
+    PARC_ERR = (e && e.message) ? e.message : "Service indisponible.";
+    PARC_ETAT='erreur';
+    if(SCREEN==='parc') renderParc();
+  });
+}
+
+/* « il y a 3 j », « hier »… plus parlant qu'une date brute */
+function parcDepuis(iso){
+  if(!iso) return '—';
+  try{
+    const d = new Date(iso);
+    const j = Math.floor((Date.now()-d.getTime())/86400000);
+    if(j<=0) return "aujourd'hui";
+    if(j===1) return "hier";
+    if(j<30)  return "il y a "+j+" j";
+    return d.toLocaleDateString('fr-FR');
+  }catch(_){ return '—'; }
+}
+function parcDate(iso){ try{ return new Date(iso).toLocaleDateString('fr-FR'); }catch(_){ return '—'; } }
+
+/* Un client est « endormi » si plus rien ne bouge depuis 14 jours */
+function parcDormant(e){
+  if(!e || !e.derniere_activite) return true;
+  try{ return (Date.now()-new Date(e.derniere_activite).getTime()) > 14*86400000; }catch(_){ return false; }
+}
+
+function parcLigne(e){
+  const dort = parcDormant(e);
+  const pastille = !e.actif ? '<span style="color:var(--warn)">● suspendu</span>'
+                 : dort     ? '<span style="color:var(--muted,#888)">● endormi</span>'
+                            : '<span style="color:var(--ok)">● actif</span>';
+  return `<div class="task-row" style="align-items:flex-start">
+    <div style="flex:1;min-width:0">
+      <b style="font-size:13px">${esc(e.nom||e.slug)}</b>
+      <span class="tag" style="margin-left:6px">${e.formule==='premium'?'Premium':'Basique'}</span>
+      <div class="tag" style="margin-top:2px">taloche.fr/?client=${esc(e.slug)}</div>
+      <div class="note" style="font-size:11px;margin-top:3px">
+        ${e.nb_utilisateurs} membre(s) · ${e.nb_chantiers} chantier(s) · ${pastille} · ${parcDepuis(e.derniere_activite)}
+      </div>
+    </div>
+    <button class="btn ghost mini" onclick="parcCopier('${esc(e.slug)}')">Copier le lien</button>
+  </div>`;
+}
+
+function parcCopier(slug){
+  const url = 'https://taloche.fr/?client='+slug;
+  try{ navigator.clipboard.writeText(url); toast("Lien copié ✅"); }
+  catch(_){ prompt("Lien du client :", url); }
+}
+
+function renderParc(){
+  let corps = '';
+
+  if(PARC_ETAT==='chargement'){
+    corps = `<div class="card"><p class="note" style="text-align:center">Lecture du parc en cours…</p></div>`;
+  }
+  else if(PARC_ETAT==='erreur'){
+    corps = `<div class="card" style="border-color:var(--warn)">
+      <p class="note"><b>Impossible d'afficher le parc.</b></p>
+      <p class="note" style="margin-top:6px">${esc(PARC_ERR)}</p>
+      <p class="note" style="margin-top:6px;font-size:11px">Si le serveur répond « Non autorisé », c'est que la session n'est pas la tienne : reconnecte-toi avec ton email Massilia.</p>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Réessayer</button>
+      <button class="btn ghost" style="width:100%;margin-top:6px" onclick="openDevLogin()">Me reconnecter</button>
+    </div>`;
+  }
+  else {
+    const liste = PARC||[];
+    const nb = liste.length;
+    const nbActifs = liste.filter(e=>e.actif!==false).length;
+    const nbPrem = liste.filter(e=>e.formule==='premium').length;
+    const nbDorment = liste.filter(e=>e.actif!==false && parcDormant(e)).length;
+    /* prix HT : basique 90 €/trimestre, premium 180 €/trimestre */
+    const recurrent = liste.filter(e=>e.actif!==false)
+                           .reduce((t,e)=>t+(e.formule==='premium'?180:90),0);
+
+    corps = `<div class="card">
+      <div class="kpis" style="margin-bottom:8px">
+        <div class="kpi acc"><div class="big">${nb}</div><div class="lbl">Clients</div></div>
+        <div class="kpi"><div class="big">${nbActifs}</div><div class="lbl">Actifs</div></div>
+        <div class="kpi"><div class="big">${nbPrem}</div><div class="lbl">Premium</div></div>
+      </div>
+      <p class="note">${recurrent.toLocaleString('fr-FR')} € HT par trimestre · ${nbDorment} client(s) sans activité depuis 15 jours.</p>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Mes clients</h2></div>
+      ${nb ? liste.map(parcLigne).join('') : `<p class="note">Aucun client pour l'instant.</p>`}
+    </div>`;
+  }
+
+  app.innerHTML = `<div class="center-wrap" style="justify-content:flex-start;max-width:560px">
+    <button class="backbtn" style="align-self:flex-start" onclick="parcRetour()"><span class="ar">←</span> Espace dev</button>
+    <div style="text-align:center;margin:8px 0 16px">
+      <h1 style="font-size:22px">Parc client</h1>
+      <p class="note" style="margin-top:6px">Tous les artisans Taloche · lecture via le serveur</p>
+    </div>
+    ${corps}
+    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
+    <p class="note" style="text-align:center;margin-top:14px;font-size:11px">Chaque consultation est journalisée côté serveur.</p>
+  </div>`;
+}
+
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v230 · 20/07";
+const APP_VERSION="v231 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -1960,6 +2079,12 @@ function renderDev(){
         <div class="kpi"><div class="big">${nbVeh}</div><div class="lbl">Véhicules</div></div>
       </div>
       <p class="note">${nbPhotos} photo(s) · ${nbDocs} document(s) publié(s) · Base : <b style="color:${useFB?'var(--ok)':'var(--warn)'}">${useFB?'Firebase (en ligne)':'Local (test)'}</b></p>
+    </div>
+
+    <div class="card" style="border-color:var(--acc)">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Parc client — Massilia</h2></div>
+      <p class="note">La liste de <b>tous</b> tes clients Taloche : formule, équipe, chantiers, dernière activité. Réservé à ton compte éditeur, vérifié par le serveur.</p>
+      <button class="btn primary" style="width:100%;margin-top:10px" onclick="parcOuvrir()">Ouvrir le parc client</button>
     </div>
 
     <div class="card" style="border-color:var(--acc)">
@@ -2703,6 +2828,33 @@ function clientApiCall(action, payload){
   const fn = firebase.app().functions('europe-west1').httpsCallable('accesClient');
   return fn(Object.assign({action:action}, payload||{})).then(r=>r.data);
 }
+/* ==================================================================
+   PASSERELLE ADMINISTRATION  (Massilia — editeur uniquement)
+   ------------------------------------------------------------------
+   Meme principe que clientApiCall : l'application ne recoit AUCUN
+   privilege. Elle se contente de poser une question a la fonction
+   serveur « admin ». C'est le serveur qui verifie que l'appelant est
+   bien l'editeur (email range cote serveur, jamais dans ce fichier),
+   qui n'accepte qu'une liste fermee d'operations, et qui journalise.
+   Si quelqu'un lit ce fichier, il n'y trouve rien a exploiter.
+   ================================================================== */
+function adminApiCall(action, payload){
+  if(BACKEND!=='supabase') return Promise.reject(new Error("L'administration du parc n'existe que sur la nouvelle base."));
+  const c = BS._sb.demarrer();
+  if(!c) return Promise.reject(new Error("Service indisponible."));
+  return c.functions.invoke('admin', {
+    body: Object.assign({action:action}, payload||{})
+  }).then(async function(r){
+    if(r.error){
+      let msg = "Service indisponible.";
+      try{ const j = await r.error.context.json(); if(j && j.erreur) msg = j.erreur; }catch(_){ }
+      throw new Error(msg);
+    }
+    if(r.data && r.data.erreur) throw new Error(r.data.erreur);
+    return r.data;
+  });
+}
+
 function isRealClient(){ return !!((useFB||BACKEND==='supabase') && CLIENT && !BOSS_PREVIEW && !DEV_ACCESS); }
 function clientPersist(action, payload){
   // Vrai client -> écriture ciblée via le serveur. Aperçu patron/dev ou mode local -> écriture directe.

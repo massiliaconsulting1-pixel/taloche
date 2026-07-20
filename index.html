@@ -17,11 +17,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
 
 <!-- ============ FIREBASE ============ -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script>
+<!-- Les 5 bibliotheques Firebase ont ete retirees : cette application
+     fonctionne sur Supabase et sortait de boot() avant tout appel a
+     Firebase. C'etaient 5 requetes inutiles a chaque ouverture. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -631,7 +629,14 @@ const BS = {
     /* Ouvre la connexion a Supabase. Appele une seule fois au demarrage. */
     demarrer(){
       if(BS._sb.client) return BS._sb.client;
-      if(!window.supabase){ console.warn('Bibliotheque Supabase absente'); return null; }
+      if(!window.supabase){
+        /* Sans bibliotheque, aucune ecriture ne part. Le silence d'hier
+           faisait croire que tout allait bien. */
+        SERVEUR_KO = true;
+        try{ bandeauServeur(); }catch(_){ }
+        console.warn('Bibliotheque Supabase absente');
+        return null;
+      }
       BS._sb.client = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.cle);
       return BS._sb.client;
     },
@@ -646,7 +651,10 @@ const BS = {
          fonctionnent quand meme : le code retrouve son chantier, et le
          compte connecte apporte son entreprise. */
       if(!slug){ BS._sb.entreprise = null; return Promise.resolve(null); }
-      return c.from('vitrine').select('slug,nom,couleur,formule,branding').eq('slug', slug).maybeSingle()
+      /* On passe par un guichet plutot que par la vue : la vue entiere
+         etait lisible sans compte, donc la liste de tous les clients de
+         Massilia. Ici on donne un slug, on recoit une seule vitrine. */
+      return c.rpc('vitrine_de', { p_slug: slug }).maybeSingle()
         .then(function(r){
           if(r.error){ console.warn('Vitrine :', r.error.message); return null; }
           BS._sb.entreprise = r.data || null;
@@ -733,6 +741,7 @@ const BS = {
                   congesAnnuels: (r.conges_annuels==null?25:r.conges_annuels),
                   docs: r.docs||{}, absences: r.absences||{}, seen: r.vu||{},
                   createdAt: r.cree_le ? new Date(r.cree_le).getTime() : Date.now() };
+      m.actif = (r.actif === false ? false : true);
       if(r.prenom) m.prenom = r.prenom;
       if(r.nom_famille) m.nomFamille = r.nom_famille;
       if(r.avatar_url) m.photo = r.avatar_url;
@@ -744,7 +753,10 @@ const BS = {
                   conges_annuels: (m.congesAnnuels==null?25:m.congesAnnuels),
                   docs: m.docs||{}, absences: m.absences||{}, vu: m.seen||{},
                   prenom: m.prenom||null, nom_famille: m.nomFamille||null,
-                  avatar_url: m.photo||null };
+                  avatar_url: m.photo||null,
+                  /* Un compte desactive doit le rester au rechargement :
+                     sans cette ligne, l'app le reaffichait comme actif. */
+                  actif: (m.actif===false ? false : true) };
       return f;
     },
 
@@ -1052,8 +1064,11 @@ const BS = {
     ecrireSemaine(sem, semaine){
       const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
       if(!BS._sb.entrepriseId) return Promise.resolve();
+      /* On efface la semaine puis on la reecrit. Si l'effacement echoue
+         sans le dire, la reecriture ajoute des doublons. */
       return c.from('planning').delete().eq('entreprise_id', BS._sb.entrepriseId).eq('semaine', sem)
-        .then(function(){
+        .then(function(_r){
+          if(_r && _r.error){ BS._sb.souci('Effacement de la semaine', _r.error); throw _r.error; }
           const lignes = [];
           Object.keys(semaine || {}).forEach(function(u){
             const jours = semaine[u] || {};
@@ -1104,7 +1119,9 @@ const BS = {
     ecrireNotesFrais(uid, liste){
       const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
       if(!BS._sb.entrepriseId) return Promise.resolve();
-      return c.from('notes_frais').delete().eq('utilisateur_id', uid).then(function(){
+      /* Meme precaution : effacer puis reecrire, sans doublon. */
+      return c.from('notes_frais').delete().eq('utilisateur_id', uid).then(function(_r){
+        if(_r && _r.error){ BS._sb.souci('Effacement des notes de frais', _r.error); throw _r.error; }
         const lignes = Object.keys(liste || {}).map(function(k){
           const n = liste[k] || {};
           return {
@@ -1254,7 +1271,8 @@ const BS = {
         if(!eid){ BS._sb.souci("Création du code", {message:"entreprise inconnue"}); return Promise.resolve(); }
         const role = (valeur.role==='chef') ? 'chef' : ((valeur.role==='boss') ? 'boss' : 'employe');
         return c.from('invitations')
-          .insert({ entreprise_id: eid, code: mvi[1], role: role })
+          .insert({ entreprise_id: eid, code: mvi[1], role: role,
+                    prenom: valeur.prenom || null, nom_famille: valeur.nom || null })
           .then(function(r){
             if(r.error) BS._sb.souci("Création du code d'invitation", r.error);
             return r;
@@ -1310,12 +1328,22 @@ const BS = {
       }
     },
 
+    /* Un effacement refuse par les regles ne renvoie pas d'erreur : il
+       renvoie « zero ligne ». Sans ce garde-fou, l'app afficherait un
+       succes pendant que la donnee reste en base. */
+    suivreEffacement(promesse, quoi){
+      return Promise.resolve(promesse).then(function(r){
+        if(r && r.error) BS._sb.souci('Suppression : '+quoi, r.error);
+        return r;
+      });
+    },
+
     supprimer(chemin){
       const mm = chemin.match(/^chat\/(?:group|dm\/[^/]+|ai\/[^/]+)\/([^/]+)$/);
       if(mm) return BS._sb.effacer('messages_equipe', 'id', mm[1], 'message');
       if(chemin === 'chat'){
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
-        return c.from('messages_equipe').delete().eq('entreprise_id', BS._sb.entrepriseId);
+        return BS._sb.suivreEffacement(c.from('messages_equipe').delete().eq('entreprise_id', BS._sb.entrepriseId), 'messages');
       }
       if(chemin === 'planning' || chemin === 'notesfrais'){
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
@@ -1326,13 +1354,13 @@ const BS = {
       if(mc) return BS._sb.effacer('chantiers', 'id', mc[1], 'chantier');
       if(chemin === 'chantiers'){
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
-        return c.from('chantiers').delete().eq('entreprise_id', BS._sb.entrepriseId);
+        return BS._sb.suivreEffacement(c.from('chantiers').delete().eq('entreprise_id', BS._sb.entrepriseId), 'chantiers');
       }
       const mv = chemin.match(/^vehicules\/([^/]+)$/);
       if(mv) return BS._sb.effacer('vehicules', 'id', mv[1], 'véhicule');
       if(chemin === 'vehicules'){
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
-        return c.from('vehicules').delete().eq('entreprise_id', BS._sb.entrepriseId);
+        return BS._sb.suivreEffacement(c.from('vehicules').delete().eq('entreprise_id', BS._sb.entrepriseId), 'véhicules');
       }
       const m = chemin.match(/^team\/([^/]+)$/);
       if(m) return BS._sb.effacer('utilisateurs', 'id', m[1], 'membre d\u2019équipe');
@@ -1415,9 +1443,11 @@ const AUTH = {
   /* Rejoindre une entreprise avec un code d'invitation.
      Cote Supabase, c'est le serveur qui cree la fiche : l'application
      ne peut pas se declarer membre toute seule. */
-  rejoindre(code, nom){
+  rejoindre(code, nom, prenom, nomFamille){
     if(BACKEND!=='supabase') return Promise.resolve({ ok:false, erreur:'hors_supabase' });
-    return BS._sb.demarrer().rpc('rejoindre_entreprise', { p_code:code, p_nom:nom||null })
+    return BS._sb.demarrer().rpc('rejoindre_entreprise', {
+        p_code:code, p_nom:nom||null,
+        p_prenom:prenom||null, p_nom_famille:nomFamille||null })
       .then(function(r){
         if(r.error) return { ok:false, erreur:r.error.message };
         return r.data || { ok:false, erreur:'reponse_vide' };
@@ -1675,7 +1705,12 @@ function applyAppIcons(){
       /* start_url : sans le ?client=..., l'app installee rouvrirait
          l'accueil neutre Taloche au lieu de celle de l'artisan. */
       const depart=(location.pathname||'/')+(location.search||'');
-      const man={ name:nm, short_name:nm, display:'standalone', background_color:'#ff8a3d', theme_color:'#ff8a3d', start_url:depart, icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
+      /* La teinte doit etre celle de l'artisan, pas celle de Taloche :
+         c'est elle qu'on voit au lancement et dans la barre du telephone.
+         On relit la couleur reellement appliquee a l'ecran. */
+      let teinte='#ff8a3d';
+      try{ const v=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim(); if(v) teinte=v; }catch(_){ }
+      const man={ name:nm, short_name:nm, display:'standalone', background_color:teinte, theme_color:teinte, start_url:depart, icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
       const blob=new Blob([JSON.stringify(man)],{type:'application/manifest+json'});
       const url=URL.createObjectURL(blob);
       let ml=document.querySelector('link[rel="manifest"]'); if(!ml){ ml=document.createElement('link'); ml.rel='manifest'; document.head.appendChild(ml); }
@@ -1843,7 +1878,48 @@ function resetCache(){ if(!confirm("Vider le cache de l'app et recharger la dern
 let RECUP = false;
 try{ if(/type=recovery/.test(location.hash || '')) RECUP = true; }catch(_){ }
 
+let SERVEUR_KO = false;
+let _essaisServeur = 0;
+
+/* Bandeau rouge, impossible a manquer, tant que le serveur est absent. */
+function bandeauServeur(){
+  let b = document.getElementById('serveur_bar');
+  if(!SERVEUR_KO){
+    if(b) b.remove();
+    document.body.style.paddingBottom = '';
+    return;
+  }
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'serveur_bar';
+    b.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#c62828;color:#fff;"
+      + "font-family:'Sora',sans-serif;font-size:12.5px;line-height:1.45;padding:11px 14px;"
+      + "box-shadow:0 -2px 14px rgba(0,0,0,.4)";
+    document.body.appendChild(b);
+  }
+  b.innerHTML = `<b>Connexion au serveur impossible.</b><br>
+    N'écris rien pour l'instant : <b>rien ne serait enregistré</b>.
+    Vérifie ta connexion, puis recharge la page.
+    <button onclick="location.reload()" style="display:block;width:100%;margin-top:8px;background:#fff;color:#c62828;
+      border:0;border-radius:9px;padding:7px;font-family:'Sora',sans-serif;font-size:12px;font-weight:800;cursor:pointer">
+      Recharger</button>`;
+}
+
+/* La bibliotheque arrive parfois en retard sur un reseau lent : on
+   reessaie une vingtaine de secondes avant de crier au loup. */
+function verifierServeur(){
+  if(BACKEND !== 'supabase') return;
+  if(window.supabase){
+    if(SERVEUR_KO){ SERVEUR_KO = false; bandeauServeur(); location.reload(); }
+    return;
+  }
+  _essaisServeur++;
+  if(_essaisServeur >= 3){ SERVEUR_KO = true; bandeauServeur(); }
+  if(_essaisServeur < 12) setTimeout(verifierServeur, 2000);
+}
+
 function bootSupabase(){
+  verifierServeur();
   try{ localStorage.removeItem('cache_config'); }catch(_){ }   /* ancienne cle commune : on la purge */
   CONFIG_DB = lsGet(cleConfig(),{}) || {};
   NOTES_SEEN=lsGet('notes_seen',{})||{}; VEH_SEEN=lsGet('veh_seen',{})||{};
@@ -1998,6 +2074,7 @@ function saveNoteFrais(uid2){ if(useFB) BS.ecrire('notesfrais/'+uid2, NOTES_FRAI
 function render(){
   applyTheme();
   try{ fantomeBandeau(); }catch(_){ }
+  try{ bandeauServeur(); }catch(_){ }
   if(useFB && !AUTH_READY){ navEl.classList.add('hidden'); app.innerHTML=splash(); return; }
   if(RECUP && AUTH_USER){ navEl.classList.add('hidden'); return renderNouveauMdp(); }
   if(SCREEN==='entry'){ navEl.classList.add('hidden'); return renderEntry(); }
@@ -3040,14 +3117,8 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v257 · 20/07";
+const APP_VERSION="v267 · 20/07";
 
-function enterDev(){
-  const v=(document.getElementById('dev_code').value||'').trim();
-  if(v!==DEV_CODE){ const e=document.getElementById('dev_err'); e.style.display='block'; e.textContent="Code incorrect."; return; }
-  closeModal(); DEV_ACCESS=false; SCREEN='dev'; render(); toTop();
-}
-const DEV_EMAIL="massiliaconsulting1@gmail.com"; // accès dev réservé à CET email uniquement
 function devAllowed(user){ if(!user) return false; if(DEV_EMAIL) return (user.email||'').toLowerCase()===DEV_EMAIL.toLowerCase(); return true; }
 function devStart(){
   if(!useFB){ SCREEN='dev'; DEV_ACCESS=false; render(); toTop(); return; } // mode local de test
@@ -3165,9 +3236,16 @@ function devToggleColor(id){
 function devSaveConfig(){
   if(!CONFIG_DB.contact) CONFIG_DB.contact={};
   CONFIG_DB.nom=val('cfg_nom')||CONFIG.NOM_ENTREPRISE; CONFIG_DB.slogan=val('cfg_slogan');
-  /* Les coordonnees ne se saisissent plus ici : l'artisan les remplit
-     dans ses propres reglages. On ne touche donc pas a CONFIG_DB.contact,
-     sinon on effacerait les siennes en enregistrant. */
+  /* Les coordonnees n'existent QUE dans l'ecran de l'artisan. On ne les
+     enregistre que si les champs sont bien a l'ecran : ailleurs, les lire
+     renverrait du vide et effacerait les siennes. */
+  const _tel=document.getElementById('cfg_tel');
+  if(_tel){
+    CONFIG_DB.contact.tel=val('cfg_tel');
+    CONFIG_DB.contact.email=val('cfg_email');
+    CONFIG_DB.contact.adresse=val('cfg_adr');
+    CONFIG_DB.contact.horaires=val('cfg_hor');
+  }
   const _fe=document.getElementById('cfg_fact'); if(_fe){ const nextF=parseInt(_fe.value,10); if(!isNaN(nextF)&&nextF>0) CONFIG_DB.factCounter=nextF-1; }
   const _de=document.getElementById('cfg_devnum'); if(_de){ const nextD=parseInt(_de.value,10); if(!isNaN(nextD)&&nextD>0) CONFIG_DB.devisCounter=nextD-1; }
   const dp=(val('cfg_devpre')||'').trim().toUpperCase(); if(dp) CONFIG_DB.devisPrefix=dp;
@@ -3646,39 +3724,6 @@ function devLoadDemoGo(){
   render(); toTop();
 }
 
-function devClearChantiersGo(){
-  if(!demoAutorisee()) return demoRefus();
-  if(useFB) BS.supprimer('chantiers'); else { CHANTIERS={}; lsSet('batisuivi_chantiers',{}); }
-  CHANTIERS={};
-  toast("Chantiers effacés"); render();
-}
-
-function devClearChantiersTeamGo(){
-  if(!demoAutorisee()) return demoRefus();
-  if(useFB){
-    ['chantiers','team','vehicules','planning','notesfrais','chat'].forEach(k=>{ BS.supprimer(k).catch(()=>{}); });
-  } else {
-    ['batisuivi_chantiers','batisuivi_team','batisuivi_vehicules','batisuivi_planning','batisuivi_notesfrais','batisuivi_chat'].forEach(k=>lsSet(k,{}));
-  }
-  ['cache_team','cache_chantiers','cache_vehicules','cache_planning','cache_notesfrais','cache_chat','veh_seen','msg_seen','etape_seen','sign_seen','chat_seen'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){ } });
-  CHANTIERS={}; TEAM={}; VEHICULES={}; PLANNING={}; NOTES_FRAIS={}; CHAT={}; CHAT_SEEN={};
-  toast("Chantiers et équipe effacés ✅"); renderDev();
-}
-
-function devResetAllGo(){
-  if(useFB){
-    // On supprime CHAQUE branche (la suppression de la racine 'batisuivi' est refusée par les règles)
-    ['config','chantiers','team','vehicules','planning','notesfrais','chat','invites'].forEach(k=>{ BS.supprimer(k).catch(()=>{}); });
-  } else {
-    lsSet('batisuivi_chantiers',{}); lsSet('batisuivi_team',{}); lsSet('batisuivi_config',{}); lsSet('batisuivi_vehicules',{});
-  }
-  // Vider les caches locaux + la mémoire, sinon l'ancienne photo / équipe réapparaît
-  ['cache_me','cache_team','cache_chantiers','cache_vehicules','cache_planning','cache_notesfrais','cache_chat','cache_config','veh_seen','msg_seen','etape_seen','sign_seen','chat_seen'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){ } });
-  CHANTIERS={}; TEAM={}; CONFIG_DB={}; VEHICULES={}; PLANNING={}; NOTES_FRAIS={}; CHAT={}; CHAT_SEEN={}; ME=null;
-  toast("App réinitialisée ✅"); SCREEN='entry'; render(); toTop();
-}
-
-/* ====================== CONNEXION CLIENT (code + nom) ====================== */
 function renderClient(){
   if(CLIENT && CLIENT.chantierId){ return renderClientDashboard(); }
   app.innerHTML=`<div class="center-wrap">
@@ -3897,7 +3942,8 @@ function renderTeamAuth(){
       <button class="btn primary" style="width:100%;margin-top:10px" onclick="teamLogin()">Se connecter</button>
       <p style="text-align:center;margin-top:10px"><button class="linkbtn" onclick="teamReset()">Mot de passe oublié ?</button></p>
     `:`
-      <label>Nom complet <span class="tag">(facultatif si déjà renseigné par le patron)</span></label><input id="t_nom" maxlength="40" placeholder="ex: Karim B.">
+      <label>Prénom</label><input id="t_prenom" maxlength="30" placeholder="ex: Karim">
+      <label>Nom <span class="tag">(facultatif)</span></label><input id="t_nomfam" maxlength="40" placeholder="ex: Benali">
       <label>Code d'invitation <span class="tag">(donné par le patron)</span></label>
       <input id="t_invite" maxlength="6" placeholder="Code équipe" style="text-transform:uppercase;letter-spacing:4px;font-family:'Sora';font-weight:800;text-align:center">
       <label>Email</label><input id="t_email" type="email" inputmode="email" placeholder="ton@email.com">
@@ -3943,7 +3989,9 @@ function teamLogin(){
 function teamSignup(){
   if(BACKEND==='supabase'){ return teamSignupSupabase(); }
   if(!useFB){ return localTeamDemo(); }
-  const nom=val('t_nom'),email=val('t_email'),pass=val('t_pass'),invite=(val('t_invite')||'').toUpperCase();
+  const prenom=(val('t_prenom')||'').trim(), nomfam=(val('t_nomfam')||'').trim();
+  const nom=[prenom,nomfam].filter(Boolean).join(' ');
+  const email=val('t_email'),pass=val('t_pass'),invite=(val('t_invite')||'').toUpperCase();
   if(!email||pass.length<6) return tErr("Email + mot de passe (6 car. min).");
   tErr('');
   // On crée d'abord le compte (=> connecté), PUIS on décide du rôle en lisant
@@ -3990,7 +4038,9 @@ function messageRejoindre(r){
 }
 
 function teamSignupSupabase(){
-  const nom=val('t_nom'), email=val('t_email'), pass=val('t_pass');
+  const prenom=(val('t_prenom')||'').trim(), nomfam=(val('t_nomfam')||'').trim();
+  const nom=[prenom,nomfam].filter(Boolean).join(' ');
+  const email=val('t_email'), pass=val('t_pass');
   const invite=(val('t_invite')||'').toUpperCase();
   if(!email || pass.length<6) return tErr("Email + mot de passe (6 caractères minimum).");
   if(!invite) return tErr("Entre le code d'invitation donné par le patron.");
@@ -4006,7 +4056,7 @@ function teamSignupSupabase(){
         tErr("Compte créé ✅ Ouvre ta boîte mail et clique sur le lien de confirmation, puis reviens ici te connecter. Le code te sera redemandé.");
         return null;
       }
-      return AUTH.rejoindre(invite, nom).then(function(rep){
+      return AUTH.rejoindre(invite, nom, prenom, nomfam).then(function(rep){
         if(rep && rep.ok){ toast("Bienvenue dans l'équipe ✅"); rechargerEquipe(); return; }
         tErr(messageRejoindre(rep));
       });
@@ -4055,7 +4105,7 @@ function joinTeam(){
   if(!inv){ e.style.display='block'; e.textContent="Entre le code."; return; }
   if(BACKEND==='supabase'){
     e.style.display='none';
-    AUTH.rejoindre(inv, (AUTH_USER&&AUTH_USER.nom)||'').then(function(r){
+    AUTH.rejoindre(inv, (AUTH_USER&&AUTH_USER.nom)||'', prenom, nomfam).then(function(r){
       if(r && r.ok){ toast("Bienvenue dans l'équipe ✅"); rechargerEquipe(); return; }
       e.style.display='block'; e.textContent=messageRejoindre(r);
     }).catch(function(err){
@@ -4337,6 +4387,10 @@ function clientEditMsg(k){ const ch=CHANTIERS[CLIENT.chantierId]; const m=ch.mes
 function clientDelMsg(k){ if(!confirm("Supprimer ce message ?")) return; const ch=CHANTIERS[CLIENT.chantierId]; const m=ch.messages&&ch.messages[k]; if(!m) return; m.deleted=true; m.deletedBy=CLIENT.nom; clientPersist('deleteMessage',{key:k}); render(); }
 function viewPhoto(url){ openModal(`<div class="grabber"></div><img src="${url}" style="width:100%;border-radius:12px">`); }
 function clientViewPhoto(k){
+  /* Cette vue appartient a l'espace client. Atteinte depuis un autre
+     ecran, CLIENT vaut null et la lecture plantait : la photo ne
+     s'ouvrait pas, sans un mot d'explication. */
+  if(!CLIENT || !CLIENT.chantierId) return;
   const ch=CHANTIERS[CLIENT.chantierId]; const p=ch&&ch.photos&&ch.photos[k]; if(!p) return;
   openModal(`<div class="grabber"></div><img src="${p.url}" style="width:100%;border-radius:12px">
     ${p.desc?`<p style="margin-top:10px;font-weight:600;line-height:1.5">${esc(p.desc)}</p>`:''}
@@ -5287,14 +5341,6 @@ function nomAffiche(m){
 
 /* Repere un nom qui n'est qu'un debut d'adresse mail : c'est le signe
    qu'il n'a jamais ete renseigne. */
-function nomEstMail(m){
-  if(!m) return false;
-  if((m.prenom||'').trim()) return false;
-  const n=(m.nom||'').trim(), e=(m.email||'').trim();
-  if(!n || !e) return false;
-  return n.toLowerCase() === e.split('@')[0].toLowerCase();
-}
-
 function myUid(){ return AUTH_USER? AUTH_USER.uid : 'local-boss'; }
 function openPointage(id){ // ouvre/ferme un pointage pour l'utilisateur courant
   const c=CHANTIERS[id]; if(!c.pointages) c.pointages={};
@@ -9106,6 +9152,21 @@ function bossEntrepriseConfig(){
     <label>Email</label><input id="cfg_email" value="${esc(ci.email)}" placeholder="contact@entreprise.fr">
     <label>Adresse</label><input id="cfg_adr" value="${esc(ci.adresse)}" placeholder="12 rue des Artisans, 21000 Dijon">
     <label>Horaires</label><input id="cfg_hor" value="${esc(ci.horaires)}" placeholder="Lun-Ven : 8h-18h">
+    <p class="note" style="margin:16px 0 8px">Numérotation des devis et factures.</p>
+    <div class="row">
+      <div><label>Préfixe devis</label>
+        <input id="cfg_devpre" maxlength="8" value="${esc(devisPrefix())}" placeholder="DEV" style="text-transform:uppercase"></div>
+      <div><label>Prochain numéro</label>
+        <input id="cfg_devnum" type="number" min="1" value="${(Number(CONFIG_DB.devisCounter)||0)+1}"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Préfixe factures</label>
+        <input id="cfg_factpre" maxlength="8" value="${esc(factPrefix())}" placeholder="FA" style="text-transform:uppercase"></div>
+      <div><label>Prochain numéro</label>
+        <input id="cfg_fact" type="number" min="1" value="${(Number(CONFIG_DB.factCounter)||0)+1}"></div>
+    </div>
+    <p class="note" style="font-size:11px;margin-top:6px">La loi impose une numérotation continue, sans trou ni doublon : ne recule jamais un compteur.</p>
+
     <label style="margin-top:12px">Couleur par défaut de l'app (pour tout le monde)</label>
     ${devColorPicker()}
     <label style="margin-top:12px">Couleurs proposées aux utilisateurs</label>
@@ -9262,46 +9323,6 @@ function openNotifs(){
 /* Chacun peut corriger son prenom et son nom. Ils ne servent qu'a
    l'affichage : rien de ce qui est deja enregistre (messages, photos,
    pointages) n'est renomme retroactivement. */
-function openMonProfil(){
-  if(!ME){ toast("Connecte-toi d'abord."); return; }
-  const p=esc((ME.prenom||'').trim());
-  const nf=esc((ME.nomFamille||'').trim());
-  openModal(`<div class="grabber"></div>
-    <h2 style="margin-bottom:4px">Mon profil</h2>
-    <p class="note" style="margin-bottom:12px">C'est ce prénom qui s'affichera en haut de l'application et à côté de tes messages.</p>
-    <label>Prénom</label>
-    <input id="mp_prenom" maxlength="30" value="${p}" placeholder="ex : Lenny">
-    <label style="margin-top:8px">Nom de famille</label>
-    <input id="mp_nom" maxlength="40" value="${nf}" placeholder="ex : Imbault">
-    ${nomEstMail(ME)?`<p class="note" style="margin-top:10px;color:var(--warn);font-size:11.5px">
-      Aujourd'hui l'application affiche « ${esc(ME.nom)} », qui vient de ton adresse mail.</p>`:''}
-    <button class="btn primary" style="width:100%;margin-top:14px" onclick="saveMonProfil()">Enregistrer</button>
-    <button class="btn ghost" style="width:100%;margin-top:6px" onclick="closeModal()">Annuler</button>
-    <div id="mp_err" class="err"></div>`);
-  setTimeout(function(){ const e=document.getElementById('mp_prenom'); if(e) e.focus(); },60);
-}
-
-function saveMonProfil(){
-  const pr=(val('mp_prenom')||'').trim();
-  const nf=(val('mp_nom')||'').trim();
-  const er=document.getElementById('mp_err');
-  if(!pr){ if(er){ er.style.display='block'; er.textContent="Le prénom ne peut pas être vide."; } return; }
-  const u=myUid();
-  if(!u || !TEAM[u]){ toast("Profil introuvable."); return; }
-
-  ME.prenom=pr; ME.nomFamille=nf;
-  /* On garde « nom » a jour : c'est lui qui est recopie dans les
-     messages et les photos a chaque nouvelle ecriture. */
-  ME.nom=[pr,nf].filter(Boolean).join(' ');
-  TEAM[u]=ME; lsSet('cache_me',ME); lsSet('cache_team',TEAM);
-
-  Promise.resolve(BS.ecrire('team/'+u, ME)).then(function(){
-    toast("Profil enregistré ✅"); closeModal(); render();
-  }).catch(function(e){
-    toast((e&&e.message)||"Enregistrement impossible.");
-  });
-}
-
 function openMenu(){
   const _hg=(typeof HUB_GUIDES!=='undefined')?(HUB?HUB_GUIDES[HUB]:HUB_GUIDES.accueil):null;
   const myPhoto=(ME&&ME.photo)?`<img src="${ME.photo}" alt="">`:esc(initials(ME&&ME.nom));
@@ -9315,8 +9336,7 @@ function openMenu(){
     <h3 style="font-size:14px;margin:20px 0 8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.5c2.5 0 4.5-2 4.5-4.5C22 6 17.5 2 12 2Z"/></svg> Couleur de l'app</h3>
     ${themeSwatches(40)}
     ${_hg?`<h3 style="font-size:14px;margin:20px 0 8px">${icone('help')} Guide - ${esc(_hg.t)}</h3>`+_hg.b.map(x=>`<div style="display:flex;gap:9px;margin-bottom:8px;align-items:flex-start"><span style="color:var(--acc);font-weight:800;line-height:1.4">&bull;</span><span style="flex:1;font-size:13px;line-height:1.45">${esc(x)}</span></div>`).join(''):''}
-    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeModal();setTimeout(openMonProfil,80)">${icone('user','16px')} Mon profil</button>
-    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal();setTimeout(openMesFrais,80)">${icone('receipt','16px')} Mes notes de frais${(()=>{ const a=mesFrais().filter(f=>fraisStatut(f)==='attente').length; return a?` <span class="pill" style="color:var(--warn);margin-left:6px">${a} en attente</span>`:''; })()}</button>
+    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeModal();setTimeout(openMesFrais,80)">${icone('receipt','16px')} Mes notes de frais${(()=>{ const a=mesFrais().filter(f=>fraisStatut(f)==='attente').length; return a?` <span class="pill" style="color:var(--warn);margin-left:6px">${a} en attente</span>`:''; })()}</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal();setTimeout(openAide,80)">${icone('help','16px')} Aide & support</button>
     <button class="btn danger" style="width:100%;margin-top:8px" onclick="teamSignOut()">${DEV_ACCESS?'↩ Revenir à l\'espace dev':'Se déconnecter'}</button>
     <p class="note" style="text-align:center;margin-top:10px;font-size:11px">${esc(coName())} · Taloche · ${APP_VERSION}</p>`);
@@ -9656,7 +9676,6 @@ function chantierRgpdCard(id,c){
 /* ============ Consommation IA : compteur & plafond ============ */
 let IA_USAGE=null, IA_USAGE_BUSY=false;
 const IA_NOMS={ assistant:"Assistant (chat)", compteRendu:"Compte-rendu vocal", projection:"Projection (rendus)", lireTicket:"Lecture de tickets", devisPhoto:"Devis par photo" };
-function iaNom(k){ return IA_NOMS[k]||k; }
 function iaPlafond(){ const v=parseFloat(CONFIG_DB.iaPlafond); return (isNaN(v)||v<0)?0:v; }
 function isDevSpace(){ return (typeof SCREEN!=='undefined' && SCREEN==='dev'); }
 
@@ -9750,12 +9769,6 @@ async function lancerDiagnostic(){
   const ko=res.fonctions.filter(f=>f.lvl!=='ok').length + ((res.regles&&res.regles.lvl!=='ok')?1:0);
   toast(ko?("Diagnostic terminé — "+ko+" point(s) à corriger"):"Diagnostic terminé — tout est vert ✅");
 }
-function diagPastille(lvl){ return lvl==='ok'?'🟢':(lvl==='warn'?'🟠':'🔴'); }
-
-/* ============================================================
- * ④ BANNIÈRE D'ANNONCE — poussée aux artisans depuis l'espace dev
- * L'annonce vit dans "config", qui est déjà lu par toutes les apps.
- * ========================================================== */
 function annonce(){ const a=CONFIG_DB.annonce; return (a && a.txt && String(a.txt).trim()) ? a : null; }
 function annonceVue(){ try{ return String(lsGet('batisuivi_annonce_vue','')||''); }catch(_){ return ''; } }
 function annonceMasquer(){
@@ -9778,173 +9791,7 @@ function annonceBanner(){
     ${a.dismissible!==false?`<button class="iconbtn" style="flex:none" onclick="annonceMasquer()" aria-label="Masquer"><svg class="x-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>`:''}
   </div>`;
 }
-function annonceCard(){
-  if(!isDevSpace()) return '';
-  const a=CONFIG_DB.annonce||{titre:'',txt:'',type:'info',dismissible:true};
-  const active=!!annonce();
-  return `<div class="card">
-    <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">📣 Annonce à l'artisan</h2></div>
-    <p class="note" style="margin:0 0 10px;font-size:12px">Un message qui s'affiche en haut de SON app (accueil, tableau de bord et espace client). Idéal pour annoncer une nouveauté ou une maintenance.</p>
-    ${active?`<div class="card" style="box-shadow:none;padding:0;margin-bottom:12px;background:transparent">${annonceApercu()}</div>
-      <p class="note" style="margin:0 0 10px;font-size:11px;color:var(--ok)"><b>✓ Annonce active</b> — publiée le ${esc(new Date(a.ts||Date.now()).toLocaleString('fr-FR'))}.</p>`:''}
-    <label style="margin-top:0">Titre (option)</label>
-    <input id="an_titre" value="${esc(a.titre||'')}" maxlength="60" placeholder="ex : Nouveau dans Taloche">
-    <label style="margin-top:10px">Message</label>
-    <textarea id="an_txt" rows="3" maxlength="400" placeholder="ex : Le devis par photo est disponible dans le hub IA. Photographiez une pièce, l'IA chiffre les travaux.">${esc(a.txt||'')}</textarea>
-    <label style="margin-top:10px">Ton</label>
-    <div class="row" style="gap:6px">
-      ${[['info','📣 Info'],['attention','⚠️ Attention'],['alerte','🚨 Alerte']].map(([k,l])=>`<button class="btn ${((a.type||'info')===k)?'primary':'ghost'} mini" style="flex:1" onclick="annonceSetType('${k}')">${l}</button>`).join('')}
-    </div>
-    <div class="row" style="gap:6px;margin-top:10px">
-      <button class="btn ${a.dismissible!==false?'primary':'ghost'} mini" style="flex:1" onclick="annonceSetDismiss(true)">Masquable</button>
-      <button class="btn ${a.dismissible===false?'primary':'ghost'} mini" style="flex:1" onclick="annonceSetDismiss(false)">Permanente</button>
-    </div>
-    <button class="btn primary" style="width:100%;margin-top:12px" onclick="publierAnnonce()">${icone('send','16px')} Publier l'annonce</button>
-    ${active?`<button class="btn danger" style="width:100%;margin-top:8px" onclick="retirerAnnonce()">Retirer l'annonce</button>`:''}
-    <p class="note" style="margin-top:8px;font-size:11px">Chaque publication génère un nouvel identifiant : même un artisan qui avait masqué la précédente reverra celle-ci.</p>
-  </div>`;
-}
-function annonceApercu(){
-  const a=CONFIG_DB.annonce||{};
-  const t=a.type||'info';
-  const col = t==='alerte' ? 'var(--danger)' : (t==='attention' ? 'var(--warn)' : 'var(--acc)');
-  const ic  = t==='alerte' ? '🚨' : (t==='attention' ? '⚠️' : '📣');
-  return `<div style="border:1px solid var(--line);border-left:3px solid ${col};border-radius:12px;padding:11px 13px;display:flex;gap:10px;background:var(--card2)">
-    <span style="flex:none;font-size:18px">${ic}</span>
-    <span style="flex:1;min-width:0">${a.titre?`<b style="font-size:13px;display:block;color:${col}">${esc(a.titre)}</b>`:''}<span style="font-size:12.5px;white-space:pre-wrap">${esc(a.txt||'')}</span></span>
-  </div>`;
-}
-function annonceSetType(t){
-  if(!isDevSpace()) return;
-  if(!CONFIG_DB.annonce) CONFIG_DB.annonce={};
-  CONFIG_DB.annonce.titre=(val('an_titre')||''); CONFIG_DB.annonce.txt=(val('an_txt')||'');
-  CONFIG_DB.annonce.type=t; renderDev();
-}
-function annonceSetDismiss(v){
-  if(!isDevSpace()) return;
-  if(!CONFIG_DB.annonce) CONFIG_DB.annonce={};
-  CONFIG_DB.annonce.titre=(val('an_titre')||''); CONFIG_DB.annonce.txt=(val('an_txt')||'');
-  CONFIG_DB.annonce.dismissible=v; renderDev();
-}
-function publierAnnonce(){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  const txt=(val('an_txt')||'').trim();
-  if(!txt){ toast("Écris d'abord un message."); return; }
-  const a=CONFIG_DB.annonce||{};
-  CONFIG_DB.annonce={
-    id:'an_'+Date.now().toString(36),
-    titre:(val('an_titre')||'').trim().slice(0,60),
-    txt:txt.slice(0,400),
-    type:a.type||'info',
-    dismissible:(a.dismissible!==false),
-    ts:Date.now()
-  };
-  saveConfigDB(); renderDev(); toast("Annonce publiée ✅ Elle s'affichera chez l'artisan.");
-}
-function retirerAnnonce(){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  if(!confirm("Retirer l'annonce ? Elle disparaîtra de l'app de l'artisan.")) return;
-  CONFIG_DB.annonce=null; saveConfigDB(); renderDev(); toast("Annonce retirée");
-}
-
-/* ============================================================
- * ⑤ PACK DE RÉGLAGES — copier la configuration d'un client à l'autre
- * Ne contient JAMAIS l'identité (nom, logo, SIREN, IBAN, avis, compteurs).
- * ========================================================== */
-const REGLAGES_PORTABLES=[
-  {k:'modeles',        l:"Modèles de chantier"},
-  {k:'etapes',         l:"Étapes de chantier"},
-  {k:'roles',          l:"Rôles & permissions"},
-  {k:'devisPrefix',    l:"Préfixe devis"},
-  {k:'factPrefix',     l:"Préfixe facture"},
-  {k:'avoirPrefix',    l:"Préfixe avoir"},
-  {k:'tvaRate',        l:"Taux de TVA"},
-  {k:'delaiPaiement',  l:"Délai de paiement"},
-  {k:'conditions',     l:"Conditions de paiement"},
-  {k:'clientMsg',      l:"Message d'accueil client"},
-  {k:'clientOff',      l:"Blocs masqués au client"},
-  {k:'equipeClientOff',l:"Équipe visible du client"},
-  {k:'meteoOff',       l:"Météo"},
-  {k:'couleurDefaut',  l:"Couleur par défaut"},
-  {k:'pointage',       l:"Pointage activé"},
-  {k:'factuOff',       l:"Facturation activée"},
-  {k:'iaPlafond',      l:"Plafond IA"},
-  {k:'supportEmail',   l:"Email du support"}
-];
-let _PACK=null;
-function exportReglages(){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  const r={};
-  REGLAGES_PORTABLES.forEach(x=>{ if(CONFIG_DB[x.k]!==undefined && CONFIG_DB[x.k]!==null) r[x.k]=CONFIG_DB[x.k]; });
-  const data={ app:'Taloche', type:'reglages', version:APP_VERSION, exportedAt:new Date().toISOString(), reglages:r };
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download='batisuivi-reglages-'+ymd(new Date())+'.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(_){ } },15000);
-  toast("Pack de réglages exporté ✅ ("+Object.keys(r).length+" réglages)");
-}
-function importReglagesPick(input){
-  const f=input.files&&input.files[0]; if(!f) return; input.value='';
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  const r=new FileReader();
-  r.onload=e=>{
-    let d=null;
-    try{ d=JSON.parse(e.target.result); }catch(_){ toast("Fichier illisible."); return; }
-    if(!d || (d.app!=='Taloche' && d.app!=='BatiSuivi') || d.type!=='reglages' || !d.reglages){ toast("Ce n'est pas un pack de réglages Taloche."); return; }
-    _PACK=d; openPackModal();
-  };
-  r.readAsText(f);
-}
-function openPackModal(){
-  const d=_PACK; if(!d) return;
-  const r=d.reglages||{};
-  const dt=d.exportedAt?new Date(d.exportedAt):null;
-  const presents=REGLAGES_PORTABLES.filter(x=>r[x.k]!==undefined);
-  openModal(`<div class="grabber"></div><h2 style="margin:0 0 4px">${icone('layers')} Appliquer un pack de réglages</h2>
-    <p class="note" style="margin:0 0 12px">Pack du <b>${dt?esc(dt.toLocaleDateString('fr-FR')):'?'}</b>${d.version?(' · '+esc(d.version)):''} · ${presents.length} réglage(s).</p>
-    <div class="card" style="box-shadow:none;padding:10px 12px;margin-bottom:12px;border-left:3px solid var(--ok)">
-      <b style="font-size:13px;color:var(--ok)">✓ L'identité du client n'est jamais touchée</b>
-      <p class="note" style="margin:3px 0 0;font-size:11.5px">Nom, logo, SIREN, adresse, IBAN, assurance, lien d'avis et <b>numérotation des documents</b> restent intacts. Seuls les réglages de fonctionnement sont copiés.</p>
-    </div>
-    <div style="max-height:200px;overflow:auto;margin-bottom:12px">
-      ${presents.map(x=>`<div class="task-row"><span style="flex:1;font-size:12.5px">${esc(x.l)}</span><span style="color:var(--ok)">✓</span></div>`).join('')}
-    </div>
-    <button class="btn primary" style="width:100%" onclick="appliquerPack()">${icone('save','16px')} Appliquer ces ${presents.length} réglages</button>
-    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal();_PACK=null">Annuler</button>`);
-}
-function appliquerPack(){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  const d=_PACK; if(!d) return;
-  const r=d.reglages||{};
-  let cnt=0;
-  REGLAGES_PORTABLES.forEach(x=>{ if(r[x.k]!==undefined){ CONFIG_DB[x.k]=r[x.k]; cnt++; } });
-  saveConfigDB(); syncEtapes();
-  _PACK=null; closeModal(); renderDev();
-  toast(cnt+" réglage(s) appliqué(s) ✅");
-}
-
-/* ============================================================
- * FICHE CLIENT & RENTABILITÉ (espace dev)
- * ========================================================== */
 function devClient(){ return (CONFIG_DB.devClient||{}); }
-function saveDevClient(){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  const d={
-    nom:(val('dc_nom')||'').trim(),
-    depuis:(val('dc_depuis')||'').trim(),
-    prix:Math.max(0, parseFloat((val('dc_prix')||'0').replace(',','.'))||0),
-    infra:Math.max(0, parseFloat((val('dc_infra')||'0').replace(',','.'))||0),
-    echeance:(val('dc_echeance')||'').trim(),
-    notes:(val('dc_notes')||'').trim().slice(0,600)
-  };
-  CONFIG_DB.devClient=d; saveConfigDB(); renderDev(); toast("Fiche client enregistrée ✅");
-}
-
-/* ============================================================
- * GARDE-FOUS DES ACTIONS DESTRUCTIVES (espace dev)
- * ========================================================== */
-let _DANGER=null;
 function instanceEnProd(){
   /* Y a-t-il de vraies données ? (documents publiés, heures pointées, ou fiche client remplie) */
   try{
@@ -9994,117 +9841,6 @@ function dangerGo(){
  * CHECKLIST « NOUVEAU CLIENT » (espace dev)
  * ========================================================== */
 function devCheck(){ return (CONFIG_DB.devCheck||{}); }
-function devCheckToggle(k){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  if(!CONFIG_DB.devCheck) CONFIG_DB.devCheck={};
-  CONFIG_DB.devCheck[k]=!CONFIG_DB.devCheck[k];
-  saveConfigDB(); renderDev();
-}
-function demoPresente(){ return !!(TEAM['demo-chef']||TEAM['demo-emp1']||TEAM['demo-emp2']); }
-function deployEtapes(){
-  const fOk = DIAG ? DIAG.fonctions.filter(f=>f.lvl==='ok').length : 0;
-  const fTot = DIAG_FONCTIONS.length;
-  const reglesOk = !!(DIAG && DIAG.regles && DIAG.regles.lvl==='ok');
-  const iaOk = !!(DIAG && DIAG.fonctions.find(f=>f.k==='assistantBatiSuivi' && f.lvl==='ok'));
-  const cfg=(typeof FIREBASE_CONFIG!=='undefined')?FIREBASE_CONFIG:{};
-  const c=devCheck();
-  return [
-    {k:'firebase', auto:true,  ok:!!useFB, l:"Projet Firebase créé et connecté",
-     d:useFB?("Projet : "+(cfg.projectId||'?')):"L'app est en mode local : la config Firebase n'est pas renseignée dans index.html."},
-    {k:'region', auto:true, ok:String(cfg.databaseURL||'').indexOf('europe-west1')>=0, l:"Base en europe-west1",
-     d:"La région doit être la même que celle des Cloud Functions."},
-    {k:'fonctions', auto:true, ok:(DIAG && fOk===fTot), l:"Les "+fTot+" Cloud Functions déployées",
-     d:DIAG?(fOk+"/"+fTot+" répondent. Lance « firebase deploy --only functions » si besoin."):"Lance le diagnostic pour vérifier."},
-    {k:'secret', auto:true, ok:iaOk, l:"Secret ANTHROPIC_API_KEY présent",
-     d:"⚠️ Il doit être créé AVANT le déploiement des fonctions, sinon le déploiement échoue."},
-    {k:'regles', auto:true, ok:reglesOk, l:"Règles de sécurité collées et publiées",
-     d:DIAG?(DIAG.regles?DIAG.regles.msg:''):"Lance le diagnostic pour vérifier que la base est bien fermée."},
-    {k:'identite', auto:true, ok:!!(CONFIG_DB.nom && CONFIG_DB.siren), l:"Identité de l'artisan renseignée",
-     d:"Nom de l'entreprise et SIREN, au minimum."},
-    {k:'demo', auto:true, ok:!demoPresente(), l:"Données de démo effacées",
-     d:demoPresente()?"⚠️ L'équipe de démo (Karim, Lucas, Thomas) est encore présente. Efface avant de livrer.":"Aucune trace de la démo."},
-    {k:'appcheck', auto:false, ok:!!c.appcheck, l:"App Check activé (reCAPTCHA v3)",
-     d:"Recommandé. Déploie d'abord en mode surveillance, puis force."},
-    {k:'budget', auto:false, ok:!!c.budget, l:"Budget / alerte de coût posée",
-     d:"Sur Google Cloud, pour ne pas découvrir la facture trop tard."},
-    {k:'plafondIA', auto:false, ok:!!c.plafondIA, l:"Plafond IA fixé pour ce client",
-     d:"Dans la carte « Consommation IA » ci-dessus."},
-    {k:'backup', auto:false, ok:!!c.backup, l:"Sauvegarde initiale faite",
-     d:"Un export .json juste après la mise en route."},
-    {k:'teste', auto:false, ok:!!c.teste, l:"Testé de bout en bout",
-     d:"Connexion équipe (1er compte = patron), accès client par code, dictée IA."}
-  ];
-}
-
-function saveIaPlafond(){
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  const v=parseFloat((val('ia_cap')||'').replace(',','.'));
-  CONFIG_DB.iaPlafond=(isNaN(v)||v<0)?0:Math.round(v*100)/100;
-  saveConfigDB(); renderDev();
-  toast(CONFIG_DB.iaPlafond>0?("Plafond fixé à "+eurF2(CONFIG_DB.iaPlafond)+" par mois ✅"):"Plafond retiré (consommation illimitée)");
-}
-function chargerIaUsage(){
-  if(IA_USAGE_BUSY) return;
-  if(!isDevSpace()){ toast("Réservé à l'espace développeur."); return; }
-  if(!useFB){ toast("Disponible une fois l'app en ligne."); return; }
-  if(!(AUTH.connecte())){ toast("Connecte-toi avec ton compte dev."); return; }
-  IA_USAGE_BUSY=true; renderDev();
-  const fn=fnServeur('iaUsage');
-  fn({}).then(r=>{ IA_USAGE=(r&&r.data)||null; })
-    .catch(e=>{ toast("Lecture impossible : "+((e&&e.message)||'erreur')); })
-    .finally(()=>{ IA_USAGE_BUSY=false; renderDev(); });
-}
-function iaUsageCard(){
-  if(!isDevSpace()) return '';
-  const cap=iaPlafond();
-  const u=IA_USAGE;
-  const cout=u?(u.total.euros||0):0;
-  const pct=(cap>0 && u)?Math.min(100,Math.round(cout/cap*100)):0;
-  const col=pct>=100?'var(--danger)':(pct>=80?'var(--warn)':'var(--ok)');
-  let h=`<div class="card" style="border-color:var(--acc)"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">🤖 Consommation IA — <span style="color:var(--acc)">ton coût</span></h2></div>
-    <p class="note" style="margin:0 0 10px;font-size:12px"><b>C'est toi qui paies l'API.</b> L'artisan, lui, paie un abonnement. Cette carte n'est visible que d'ici, jamais de son côté.</p>`;
-
-  if(u){
-    h+=`<div class="kpis" style="margin:0 0 10px">
-      <div class="kpi acc"><div class="big" style="font-size:22px">${eurF2(cout)}</div><div class="lbl">Ce mois (${esc(u.mois||'')})</div></div>
-      <div class="kpi"><div class="big" style="font-size:22px">${u.total.appels||0}</div><div class="lbl">Appels IA</div></div>
-    </div>`;
-    if(cap>0){
-      h+=`<div class="task-row"><span style="flex:1">Plafond mensuel</span><b style="color:${col}">${pct}% de ${eurF2(cap)}</b></div>
-        <div class="progress" style="margin-top:6px"><span style="width:${pct}%;background:${col}"></span></div>
-        ${pct>=100?`<p class="note" style="margin-top:6px;font-size:11.5px;color:var(--danger)"><b>⛔ Plafond atteint : l'IA est en pause jusqu'au mois prochain</b> (ou jusqu'à ce que tu augmentes le plafond).</p>`:(pct>=80?`<p class="note" style="margin-top:6px;font-size:11.5px;color:var(--warn)">⚠️ Tu approches du plafond.</p>`:'')}`;
-    }
-    if(u.detail && u.detail.length){
-      h+=`<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
-        <p class="tag" style="margin:0 0 6px">Détail du mois</p>
-        ${u.detail.map(d=>`<div class="task-row"><span style="flex:1">${esc(iaNom(d.nom))}</span><span class="note" style="margin-right:8px;font-size:11px">${d.appels} appel${d.appels>1?'s':''}</span><b style="font-size:13px">${eurF2(d.euros)}</b></div>`).join('')}
-      </div>`;
-    }
-    if(u.histo && u.histo.length>1){
-      const maxH=Math.max(1,...u.histo.map(x=>x.euros));
-      h+=`<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px">
-        <p class="tag" style="margin:0 0 6px">6 derniers mois</p>
-        ${u.histo.slice().reverse().map(x=>`<div class="task-row" style="gap:10px"><span style="width:58px;font-size:12px" class="note">${esc(x.mois)}</span>${statBar(x.euros/maxH*100)}<b style="width:66px;text-align:right;font-size:13px">${eurF2(x.euros)}</b></div>`).join('')}
-      </div>`;
-    }
-    h+=`<p class="note" style="margin-top:10px;font-size:11px">Estimation calculée à partir des jetons réellement consommés (et d'un forfait par rendu de projection). À comparer avec ce que ce client te paie chaque mois.</p>`;
-  } else {
-    h+=`<p class="note" style="margin:0 0 10px">Touche le bouton ci-dessous pour lire la consommation du mois.</p>`;
-  }
-
-  h+=`<button class="btn ghost" style="width:100%;margin-top:10px" ${IA_USAGE_BUSY?'disabled style="opacity:.6;width:100%;margin-top:10px"':''} onclick="chargerIaUsage()">${IA_USAGE_BUSY?'⏳ Lecture…':(u?'↻ Actualiser':'Voir ma consommation IA')}</button>
-
-    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
-      <label style="margin-top:0">Plafond mensuel (€) — 0 = illimité</label>
-      <div class="row" style="gap:6px">
-        <input id="ia_cap" type="number" inputmode="decimal" step="0.5" min="0" value="${cap||''}" placeholder="ex : 20" style="flex:1">
-        <button class="btn primary mini" style="flex:none;align-self:flex-end" onclick="saveIaPlafond()">OK</button>
-      </div>
-      <p class="note" style="font-size:11px;margin-top:6px">Au-delà de ce montant, <b>l'IA de CE client se met en pause</b> jusqu'au mois suivant : plus aucun appel n'est facturé sur ton compte. Le reste de l'app continue normalement, et il verra un message l'invitant à te contacter.</p>
-    </div>
-  </div>`;
-  return h;
-}
 function equipeClientOn(){ return CONFIG_DB.equipeClientOff!==true; }
 /* Ce que le client voit — réglable par l'artisan */
 const CLIENT_BLOCS=[
@@ -10368,13 +10104,6 @@ function openHelp(){
 /* note de frais (tout membre envoie, seul le boss voit) */
 let _pendingNote=null;
 
-function saveNoteFraisPhoto(){
-  const p=_pendingNote; if(!p) return; const desc=val('nf_desc');
-  const mtRaw=val('nf_montant'); const mt=mtRaw?parseFloat(mtRaw.replace(',','.')):0;
-  const u=myUid(); if(!NOTES_FRAIS[u]) NOTES_FRAIS[u]={};
-  NOTES_FRAIS[u][uid()]={url:p.url,desc:desc||'',montant:(mt&&!isNaN(mt))?mt:0,ts:Date.now(),nom:(ME&&ME.nom)||''};
-  _pendingNote=null; saveNoteFrais(u); closeModal(); toast("Note de frais envoyée au patron ✅");
-}
 function eurFmt(n){ return (n||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
 function sameMonth(ts){ const d=new Date(ts),n=new Date(); return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear(); }
 function openPointageAjout(id){

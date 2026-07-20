@@ -1188,22 +1188,19 @@ const BS = {
       let m = chemin.match(/^team\/([^/]+)\/seen\/([^/]+)$/);
       if(m){
         const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
-        return BS._sb.lireMembre(m[1]).then(function(mem){
-          const vu = (mem && mem.seen) || {}; vu[m[2]] = valeur;
-          /* .select() est indispensable : sans lui, une ligne refusee par
-             les regles ne renvoie AUCUNE erreur — l'echec est invisible. */
-          return c.from('utilisateurs').update({ vu: vu }).eq('id', m[1]).select('id')
-            .then(function(r){
-              if(r.error){ VU_DIAG={ok:false, type:m[2], msg:r.error.message||'erreur', quand:Date.now()}; }
-              else if(!r.data || !r.data.length){
-                VU_DIAG={ok:false, type:m[2],
-                  msg: mem ? "refus des règles de la base" : "aucune fiche à ce nom dans l'entreprise",
-                  quand:Date.now()};
-              }
-              else { VU_DIAG={ok:true, type:m[2], msg:'enregistré', quand:Date.now()}; }
-              return r;
-            });
-        });
+        /* maj_vu ne remplace QUE la branche demandee, dans la base.
+           Deux enregistrements simultanes ne peuvent plus s'effacer. */
+        return c.rpc('maj_vu', { p_type: m[2], p_valeur: valeur || {} })
+          .then(function(r){
+            if(r.error){
+              VU_DIAG={ok:false, type:m[2], msg:r.error.message||'erreur', quand:Date.now()};
+            } else if(r.data === false){
+              VU_DIAG={ok:false, type:m[2], msg:"aucune fiche à ton nom dans cette entreprise", quand:Date.now()};
+            } else {
+              VU_DIAG={ok:true, type:m[2], msg:'enregistré', quand:Date.now()};
+            }
+            return r;
+          });
       }
       /* team/<uid> : une fiche complete */
       m = chemin.match(/^team\/([^/]+)$/);
@@ -2964,7 +2961,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v251 · 20/07";
+const APP_VERSION="v252 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -4610,9 +4607,28 @@ function diagNotifs(){
     <button class="btn ghost" style="width:100%;margin-top:6px" onclick="closeModal()">Fermer</button>`);
 }
 function diagNotifsForcer(){
-  pushSeen('msg', MSG_SEEN); pushSeen('etape', ETAPE_SEEN); pushSeen('sign', SIGN_SEEN);
-  pushSeen('relance', RELANCE_SEEN); pushSeen('veh', VEH_SEEN); pushSeen('chat', CHAT_SEEN);
-  setTimeout(diagNotifs, 900);
+  /* Un par un, en file : c'est ainsi qu'on verifie que les six
+     branches coexistent vraiment dans la fiche. */
+  const files=[['msg',MSG_SEEN],['etape',ETAPE_SEEN],['sign',SIGN_SEEN],
+               ['relance',RELANCE_SEEN],['veh',VEH_SEEN],['chat',CHAT_SEEN]];
+  const c = BS._sb ? BS._sb.demarrer() : null;
+  const u = seenUid();
+  if(!c || !u){ pushSeen('msg', MSG_SEEN); setTimeout(diagNotifs, 700); return; }
+  let p = Promise.resolve();
+  files.forEach(function(f){
+    p = p.then(function(){ return BS.ecrire('team/'+u+'/seen/'+f[0], f[1]); });
+  });
+  p.then(function(){ return BS._sb.lireMembre(u); })
+   .then(function(mem){
+      const vu=(mem&&mem.seen)||{};
+      VU_DIAG={ok:true, type:'tout',
+        msg:'branches enregistrées : '+Object.keys(vu).sort().join(', '), quand:Date.now()};
+      diagNotifs();
+   })
+   .catch(function(e){
+      VU_DIAG={ok:false, type:'tout', msg:(e&&e.message)||'échec', quand:Date.now()};
+      diagNotifs();
+   });
 }
 
 function setTab(t){ TAB=t; CUR_CHANTIER=null; ARCH_VIEW=false; CLIENTS_VIEW=false; CHAT_OPEN=null; if(t==='dashboard'){ markSignedSeen(); markRelanceSeen(); } render(); toTop(); }

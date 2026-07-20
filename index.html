@@ -1357,6 +1357,7 @@ let VEH_SEEN={};        // {vehId:ts} incidents véhicules vus
 let MSG_SEEN={};        // {chantierId:ts} messages client vus
 let ETAPE_SEEN={};      // {chantierId:idxEtapeVue} avancement vu
 let SIGN_SEEN={};       // {pid:true} devis signés vus par le boss
+let RELANCE_SEEN={};    // {pid:true} relances de devis déjà vues
 let CHAT={};            // messagerie interne {group:{}, dm:{pairKey:{}}}
 let CHAT_OPEN=null;     // 'group' | 'ai' | 'dm:<uid>' | null
 let CHAT_SEEN={};       // {convKey:ts} (local, par appareil)
@@ -1758,6 +1759,7 @@ function bootSupabase(){
   CONFIG_DB = lsGet(cleConfig(),{}) || {};
   NOTES_SEEN=lsGet('notes_seen',{})||{}; VEH_SEEN=lsGet('veh_seen',{})||{};
   MSG_SEEN=lsGet('msg_seen',{})||{}; ETAPE_SEEN=lsGet('etape_seen',{})||{}; SIGN_SEEN=lsGet('sign_seen',{})||{};
+  RELANCE_SEEN=lsGet('relance_seen',{})||{};
   syncEtapes();
   BS.ecouter('config', function(v){
     if(v){ CONFIG_DB = v; lsSet(cleConfig(), CONFIG_DB); syncEtapes(); }
@@ -2949,7 +2951,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v248 · 20/07";
+const APP_VERSION="v249 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -4512,11 +4514,16 @@ function renderTeamApp(){
   ensureEtapeBaseline();
   navEl.innerHTML=tabs.map(([t,ic,lb])=>{
     let badges='';
-    if(t==='chantiers'){ if(totalAdvanced()) badges+=`<span class="nav-badge green">${totalAdvanced()}</span>`; }
-    if(t==='dashboard' && unseenSigned()) badges+=`<span class="nav-badge green">${unseenSigned()}</span>`;
+    /* Une pastille et une seule par onglet : son nombre = tout ce qui
+       attend le patron derriere cet onglet. Il retrouve donc exactement
+       ce nombre en l'ouvrant. La couleur dit l'urgence la plus forte. */
+    if(t==='chantiers'){ const n=totalAdvanced(); if(n) badges+=`<span class="nav-badge green">${n}</span>`; }
+    if(t==='dashboard'){
+      const sig=unseenSigned(), rel=relancesNonVues(), n=sig+rel;
+      if(n) badges+=`<span class="nav-badge ${rel?'amber':'green'}">${n}</span>`;
+    }
     if(t==='messagerie'){ const n=totalChatUnread()+(isChef()?totalUnreadMsgs():0); if(n) badges+=`<span class="nav-badge">${n}</span>`; }
     if(t==='equipe'){ const nv=totalVehUnseen(); if(nv) badges+=`<span class="nav-badge">${nv}</span>`; }
-    if(t==='dashboard' && totalRelances()) badges+=`<span class="nav-badge amber">${totalRelances()}</span>`;
     return `<button class="${TAB===t?'on':''}" onclick="setTab('${t}')"><span class="ic" style="position:relative">${icone(ic,'24px')}${badges}</span>${lb}</button>`;
   }).join('');
 
@@ -4556,7 +4563,7 @@ function fabFor(){
   if(TAB==='equipe' && EQ_SUB==='vehicules' && isChef()) return `<button class="fab" onclick="newVehicule()" aria-label="Nouveau véhicule">${plus}</button>`;
   return '';
 }
-function setTab(t){ TAB=t; CUR_CHANTIER=null; ARCH_VIEW=false; CLIENTS_VIEW=false; CHAT_OPEN=null; if(t==='dashboard') markSignedSeen(); render(); toTop(); }
+function setTab(t){ TAB=t; CUR_CHANTIER=null; ARCH_VIEW=false; CLIENTS_VIEW=false; CHAT_OPEN=null; if(t==='dashboard'){ markSignedSeen(); markRelanceSeen(); } render(); toTop(); }
 function openChantier(id){ CUR_CHANTIER=id; CHTAB='apercu'; markMsgSeen(id); markEtapeSeen(id); render(); toTop(); }
 function closeChantier(){ CUR_CHANTIER=null; render(); toTop(); }
 function toTop(){ try{ window.scrollTo(0,0); document.documentElement.scrollTop=0; document.body.scrollTop=0; }catch(e){} }
@@ -4565,10 +4572,18 @@ function toTop(){ try{ window.scrollTo(0,0); document.documentElement.scrollTop=
 function isLate(c){ return c.dateFin && c.dateFin<todayISO() && c.etape!==ETAPES[ETAPES.length-1]; }
 function devisSigne(c){ if(!c||!c.published) return false; return Object.values(c.published).some(d=>d&&d.type==='devis'&&d.signature); }
 function mergeSeen(local,remote,bool){ const out=Object.assign({},local||{}); if(remote) Object.keys(remote).forEach(k=>{ out[k]= bool ? (out[k]||remote[k]) : Math.max(out[k]||0, remote[k]||0); }); return out; }
-function seenUid(){ const u=myUid(); return (useFB && u && u!=='local-boss' && u!=='dev-admin') ? u : null; }
+function seenUid(){
+  const u = myUid();
+  if(!u || u==='local-boss' || u==='dev-admin') return null;
+  /* Mode fantome : je n'ai pas de fiche chez cet artisan. Enregistrer
+     mes « vu » chez lui n'aurait aucun sens et ecraserait les siens. */
+  try{ if(ME && ME._fantome) return null; }catch(_){ }
+  return (useFB || BACKEND==='supabase') ? u : null;
+}
 function pushSeen(type,obj){ try{ const u=seenUid(); if(u) BS.ecrire('team/'+u+'/seen/'+type, obj); }catch(_){ } }
 function loadSeenFromProfile(prof){ if(!prof||!prof.seen) return; const s=prof.seen;
-  MSG_SEEN=mergeSeen(MSG_SEEN,s.msg); ETAPE_SEEN=mergeSeen(ETAPE_SEEN,s.etape); SIGN_SEEN=mergeSeen(SIGN_SEEN,s.sign,true); VEH_SEEN=mergeSeen(VEH_SEEN,s.veh); NOTES_SEEN=mergeSeen(NOTES_SEEN,s.notes); CHAT_SEEN=mergeSeen(CHAT_SEEN,s.chat);
+  MSG_SEEN=mergeSeen(MSG_SEEN,s.msg); ETAPE_SEEN=mergeSeen(ETAPE_SEEN,s.etape); SIGN_SEEN=mergeSeen(SIGN_SEEN,s.sign,true);
+  RELANCE_SEEN=mergeSeen(RELANCE_SEEN,s.relance,true); lsSet('relance_seen',RELANCE_SEEN); VEH_SEEN=mergeSeen(VEH_SEEN,s.veh); NOTES_SEEN=mergeSeen(NOTES_SEEN,s.notes); CHAT_SEEN=mergeSeen(CHAT_SEEN,s.chat);
   lsSet('msg_seen',MSG_SEEN); lsSet('etape_seen',ETAPE_SEEN); lsSet('sign_seen',SIGN_SEEN); lsSet('veh_seen',VEH_SEEN); lsSet('notes_seen',NOTES_SEEN); lsSet('chat_seen',CHAT_SEEN);
 }
 function chUnread(c,id){ if(!c||!c.messages) return 0; const seen=MSG_SEEN[id]||0; return Object.values(c.messages).filter(m=>m&&m.from==='client'&&!m.deleted&&(m.ts||0)>seen).length; }
@@ -4582,6 +4597,29 @@ function unseenSigned(){ let n=0; Object.keys(CHANTIERS).forEach(id=>{ const c=C
 function joursDepuis(ts){ if(!ts) return 0; return Math.floor((Date.now()-ts)/86400000); }
 function relanceDevis(d){ if(!d || d.type!=='devis' || d.signature) return 0; const j=joursDepuis(d.ts); return j>=5? j : 0; }
 function totalRelances(){ let n=0; Object.values(CHANTIERS).forEach(c=>{ if(c.published) Object.values(c.published).forEach(d=>{ if(relanceDevis(d)) n++; }); }); return n; }
+/* Ce qui fait sonner la pastille : uniquement les relances jamais vues.
+   Une fois le tableau de bord ouvert, le compte retombe et ne remonte
+   que si un NOUVEAU devis depasse les 5 jours. */
+function relancesNonVues(){
+  let n=0;
+  Object.values(CHANTIERS).forEach(function(c){
+    if(!c.published) return;
+    Object.keys(c.published).forEach(function(pid){
+      if(relanceDevis(c.published[pid]) && !RELANCE_SEEN[pid]) n++;
+    });
+  });
+  return n;
+}
+function markRelanceSeen(){
+  let ch=false;
+  Object.values(CHANTIERS).forEach(function(c){
+    if(!c.published) return;
+    Object.keys(c.published).forEach(function(pid){
+      if(relanceDevis(c.published[pid]) && !RELANCE_SEEN[pid]){ RELANCE_SEEN[pid]=true; ch=true; }
+    });
+  });
+  if(ch){ lsSet('relance_seen',RELANCE_SEEN); pushSeen('relance',RELANCE_SEEN); }
+}
 function markSignedSeen(){ let ch=false; Object.keys(CHANTIERS).forEach(id=>{ const c=CHANTIERS[id]; if(c.published) Object.keys(c.published).forEach(pid=>{ if(c.published[pid].signature && !SIGN_SEEN[pid]){ SIGN_SEEN[pid]=true; ch=true; } }); }); if(ch){ lsSet('sign_seen',SIGN_SEEN); pushSeen('sign',SIGN_SEEN); } }
 /* ===== Devis v205 : unites, cout de revient (prive), remise globale, sections, reordonner, bibliotheque ===== */
 const UNITES_BTP=[['Surfaces',['m²','dm²','cm²']],['Volumes',['m³','dm³','L']],['Longueurs',['m','ml','cm','mm']],['Poids',['kg','T','g']],['Temps',['h','½ j','jour','mois']],['Quantité',['u','pce','paire','lot','ens','forfait','%']]];

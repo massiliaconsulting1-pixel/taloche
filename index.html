@@ -613,7 +613,6 @@ const BS = {
     return BS._sb.supprimer(chemin);
   },
 
-
   /* --- cote Supabase : branche bloc par bloc (phase 4) --- */
   _sb: {
     client: null,
@@ -1582,7 +1581,10 @@ function applyAppIcons(){
     const apply=(icon)=>{
       document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(l=>l.href=icon);
       document.querySelectorAll('link[rel="icon"]').forEach(l=>l.href=icon);
-      const man={ name:nm, short_name:nm, display:'standalone', background_color:'#ff8a3d', theme_color:'#ff8a3d', start_url:'.', icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
+      /* start_url : sans le ?client=..., l'app installee rouvrirait
+         l'accueil neutre Taloche au lieu de celle de l'artisan. */
+      const depart=(location.pathname||'/')+(location.search||'');
+      const man={ name:nm, short_name:nm, display:'standalone', background_color:'#ff8a3d', theme_color:'#ff8a3d', start_url:depart, icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
       const blob=new Blob([JSON.stringify(man)],{type:'application/manifest+json'});
       const url=URL.createObjectURL(blob);
       let ml=document.querySelector('link[rel="manifest"]'); if(!ml){ ml=document.createElement('link'); ml.rel='manifest'; document.head.appendChild(ml); }
@@ -1914,6 +1916,7 @@ function render(){
   if(SCREEN==='marge'){ navEl.classList.add('hidden'); return renderMarge(); }
   if(SCREEN==='support'){ navEl.classList.add('hidden'); return renderSupport(); }
   if(SCREEN==='journal'){ navEl.classList.add('hidden'); return renderJournal(); }
+  if(SCREEN==='annonce'){ navEl.classList.add('hidden'); return renderAnnonce(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
     if(useFB && !AUTH_USER){ navEl.classList.add('hidden'); return renderTeamAuth(); }
@@ -2419,6 +2422,101 @@ function validerNouveauMdp(){
   });
 }
 
+/* ====================== ANNONCE A TOUT LE PARC ======================
+   Un bandeau affiche en haut de l'application de CHAQUE artisan :
+   maintenance prevue, nouveaute, rappel d'echeance. Le serveur ecrit
+   le message dans les reglages de toutes les entreprises d'un coup. */
+let ANN=null, ANN_ETAT='vide', ANN_ERR='', ANN_TYPE='info';
+
+function annonceOuvrir(){ SCREEN='annonce'; ANN=null; ANN_ETAT='chargement'; ANN_ERR=''; render(); toTop(); annonceCharger(); }
+function annonceRetour(){ SCREEN='parc'; render(); toTop(); }
+
+function annonceCharger(){
+  ANN_ETAT='chargement'; ANN_ERR='';
+  if(SCREEN==='annonce') renderAnnonce();
+  adminApiCall('annonceEtat',{}).then(function(r){
+    ANN = r || null;
+    ANN_TYPE = (ANN && ANN.annonce && ANN.annonce.type) || 'info';
+    ANN_ETAT='pret';
+    if(SCREEN==='annonce') renderAnnonce();
+  }).catch(function(e){
+    ANN_ERR=(e&&e.message)?e.message:"Service indisponible."; ANN_ETAT='erreur';
+    if(SCREEN==='annonce') renderAnnonce();
+  });
+}
+
+function annonceType(t){ ANN_TYPE=t; renderAnnonce(); }
+
+function annonceEnvoyer(){
+  const titre=(val('ann_titre')||'').trim();
+  const txt=(val('ann_txt')||'').trim();
+  if(!txt){ toast("Écris le message."); return; }
+  const n=(ANN&&ANN.nb_clients)||0;
+  if(!confirm("Envoyer cette annonce à "+n+" client(s) ?\n\nElle s'affichera en haut de leur application jusqu'à ce que tu la retires.")) return;
+  adminApiCall('annonce',{ titre:titre, txt:txt, type:ANN_TYPE })
+    .then(function(){ toast("Annonce diffusée à "+n+" client(s) ✅"); annonceCharger(); })
+    .catch(function(e){ toast((e&&e.message)||"Diffusion impossible."); });
+}
+
+function annonceRetirer(){
+  if(!confirm("Retirer l'annonce chez tous les clients ?")) return;
+  adminApiCall('annonce',{ retirer:true })
+    .then(function(){ toast("Annonce retirée ✅"); annonceCharger(); })
+    .catch(function(e){ toast((e&&e.message)||"Retrait impossible."); });
+}
+
+function renderAnnonce(){
+  let corps='';
+
+  if(ANN_ETAT==='chargement'){
+    corps = `<div class="card"><p class="note" style="text-align:center">Lecture…</p></div>`;
+  }
+  else if(ANN_ETAT==='erreur'){
+    corps = `<div class="card" style="border-color:var(--warn)">
+      <p class="note"><b>Indisponible.</b></p>
+      <p class="note" style="margin-top:6px">${esc(ANN_ERR)}</p>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="annonceCharger()">Réessayer</button>
+    </div>`;
+  }
+  else {
+    const a=(ANN&&ANN.annonce)||null;
+    const nb=(ANN&&ANN.nb_clients)||0;
+    const poses=(ANN&&ANN.nb_avec)||0;
+
+    corps = `${a?`<div class="card" style="border-color:var(--acc)">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Annonce en cours</h2></div>
+      ${a.titre?`<p><b>${esc(a.titre)}</b></p>`:''}
+      <p class="note" style="margin-top:4px">${esc(a.txt||'')}</p>
+      <p class="note" style="font-size:11px;margin-top:8px">Affichée chez ${poses} client(s) sur ${nb}.</p>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="annonceRetirer()">Retirer l'annonce</button>
+    </div>`:''}
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${a?'Remplacer':'Nouvelle annonce'}</h2></div>
+      <label>Titre (facultatif)</label>
+      <input id="ann_titre" value="${esc(a?(a.titre||''):'')}" placeholder="ex: Maintenance samedi matin">
+      <label style="margin-top:8px">Message</label>
+      <textarea id="ann_txt" rows="3" placeholder="ex: L'application sera indisponible samedi de 7h à 9h.">${esc(a?(a.txt||''):'')}</textarea>
+      <p class="tag" style="margin-top:12px">Ton</p>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn ${ANN_TYPE==='info'?'primary':'ghost'}" style="flex:1" onclick="annonceType('info')">Info</button>
+        <button class="btn ${ANN_TYPE==='warn'?'primary':'ghost'}" style="flex:1" onclick="annonceType('warn')">Important</button>
+      </div>
+      <button class="btn primary" style="width:100%;margin-top:14px" onclick="annonceEnvoyer()">Diffuser aux ${nb} clients</button>
+      <p class="note" style="font-size:11px;margin-top:8px">Elle apparaît en haut de leur application. Chacun peut la masquer une fois lue, mais elle reste visible aux nouveaux venus tant que tu ne la retires pas.</p>
+    </div>`;
+  }
+
+  app.innerHTML = `<div class="center-wrap" style="justify-content:flex-start;max-width:560px">
+    <button class="backbtn" style="align-self:flex-start" onclick="annonceRetour()"><span class="ar">←</span> Parc client</button>
+    <div style="text-align:center;margin:8px 0 16px">
+      <h1 style="font-size:22px">Annonce</h1>
+      <p class="note" style="margin-top:6px">Un message à tout ton parc</p>
+    </div>
+    ${corps}
+  </div>`;
+}
+
 /* ====================== JOURNAL D'ADMINISTRATION ======================
    La reponse a « qu'est-ce que j'ai fait le 12 ? ». Chaque operation
    passee par le serveur y figure, avec l'heure et le client concerne.
@@ -2837,10 +2935,11 @@ function renderParc(){
       <p class="note" style="margin-top:6px">Tous les artisans Taloche · lecture via le serveur</p>
     </div>
     <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="parcNouveau()">+ Nouveau client</button>
-    <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
       <button class="btn ghost" style="flex:1" onclick="margeOuvrir()">Ma marge</button>
       <button class="btn ghost" style="flex:1" onclick="journalOuvrir()">Journal</button>
     </div>
+    <button class="btn ghost" style="width:100%;margin-bottom:12px" onclick="annonceOuvrir()">Annonce à tout le parc</button>
     ${corps}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
     <p class="note" style="text-align:center;margin-top:14px;font-size:11px">Chaque consultation est journalisée côté serveur.</p>
@@ -2849,7 +2948,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v244 · 20/07";
+const APP_VERSION="v247 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -2908,87 +3007,15 @@ function renderDev(){
       <p class="note" style="margin-top:8px">Accès total — ${esc(coName())}</p></div>
 
     <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></svg> État de l'app</h2></div>
-      <div class="kpis" style="margin-bottom:8px">
-        <div class="kpi acc"><div class="big">${nbCh}</div><div class="lbl">Chantiers</div></div>
-        <div class="kpi"><div class="big">${nbTeam}</div><div class="lbl">Équipe</div></div>
-        <div class="kpi"><div class="big">${nbVeh}</div><div class="lbl">Véhicules</div></div>
-      </div>
-      <p class="note">${nbPhotos} photo(s) · ${nbDocs} document(s) publié(s) · Base : <b style="color:${useFB?'var(--ok)':'var(--warn)'}">${useFB?'Firebase (en ligne)':'Local (test)'}</b></p>
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">L'atelier</h2></div>
+      <p class="note">Version <b>${APP_VERSION}</b> · base <b>${BACKEND==='supabase'?'Supabase (Paris)':'Firebase'}</b> · une seule application pour tous les clients.</p>
+      <p class="note" style="margin-top:6px;font-size:11.5px">Les chiffres d'un artisan se lisent dans sa <b>fiche</b>, et ses réglages s'ouvrent depuis son application, en mode patron.</p>
     </div>
 
     <div class="card" style="border-color:var(--acc)">
       <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Parc client — Massilia</h2></div>
       <p class="note">La liste de <b>tous</b> tes clients Taloche : formule, équipe, chantiers, dernière activité. Réservé à ton compte éditeur, vérifié par le serveur.</p>
       <button class="btn primary" style="width:100%;margin-top:10px" onclick="parcOuvrir()">Ouvrir le parc client</button>
-    </div>
-
-    <div class="card" style="border-color:var(--acc)">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg> Accès complet</h2></div>
-      <p class="note">Ouvre l'app en <b>patron</b> : tu vois et modifies tout (chantiers, équipe, véhicules, planning, devis/factures, réglages). Utilise-le pour répondre à une demande d'un client.</p>
-      <button class="btn primary" style="width:100%;margin-top:10px" onclick="devOpenAsBoss()">Ouvrir l'app en accès patron</button>
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> Aperçu côté client</h2></div>
-      <p class="note">Voir exactement ce que voit le client d'un chantier (avec son code).</p>
-      ${nbCh?`<div style="margin-top:8px">${chs.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(c=>`<div class="task-row"><div style="flex:1;min-width:0"><b style="font-size:13px">${esc(c.nom)}</b><div class="tag"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${esc(clientFull(c))} · 🔑 ${esc(c.clientCode||'—')}</div></div><button class="btn ghost mini" onclick="devOpenClient('${c.id}')"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> Voir</button></div>`).join('')}</div>`:`<p class="note" style="margin-top:8px">Aucun chantier pour l'instant.</p>`}
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3 1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg> Configuration de l'entreprise</h2></div>
-      <p class="note" style="margin-bottom:8px">Identité affichée partout dans l'app.</p>
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
-        <div class="hero-logo" style="width:64px;height:64px;font-size:30px;margin:0">${coLogo()?`<img src="${coLogo()}" style="width:100%;height:100%;object-fit:contain;border-radius:14px">`:'🏗️'}</div>
-        <div style="flex:1"><input type="file" id="cfg_logo_file" accept="image/*" style="display:none" onchange="devUploadLogo(this)">
-          <button class="btn ghost mini" onclick="document.getElementById('cfg_logo_file').click()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Changer le logo</button>
-          ${coLogo()?`<button class="btn ghost mini" style="margin-top:6px" onclick="devRemoveLogo()">Retirer</button>`:''}</div>
-      </div>
-      <p class="note" style="margin:6px 0 8px">Icône de l'app sur l'écran d'accueil du téléphone (image <b>carrée</b>, pleine, sans bord blanc). Si vide, le logo ci-dessus est utilisé.</p>
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
-        <div class="hero-logo" style="width:64px;height:64px;font-size:30px;margin:0;border-radius:14px">${CONFIG_DB.appIcon?`<img src="${CONFIG_DB.appIcon}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`:'📱'}</div>
-        <div style="flex:1"><input type="file" id="cfg_icon_file" accept="image/*" style="display:none" onchange="devUploadIcon(this)">
-          <button class="btn ghost mini" onclick="document.getElementById('cfg_icon_file').click()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Choisir l'icône</button>
-          ${CONFIG_DB.appIcon?`<button class="btn ghost mini" style="margin-top:6px" onclick="devRemoveIcon()">Retirer</button>`:''}</div>
-      </div>
-      <label>Nom de l'entreprise</label><input id="cfg_nom" value="${esc(coName())}" placeholder="ex: Dupont Rénovation">
-      <label>Slogan</label><input id="cfg_slogan" value="${esc(coSlogan())}" placeholder="ex: Votre chantier en toute confiance">
-      <p class="note" style="margin:14px 0 8px">Coordonnées affichées aux clients (page Contact).</p>
-      <label>Téléphone</label><input id="cfg_tel" value="${esc(ci.tel)}" placeholder="06 12 34 56 78">
-      <label>Email</label><input id="cfg_email" value="${esc(ci.email)}" placeholder="contact@entreprise.fr">
-      <label>Adresse</label><input id="cfg_adr" value="${esc(ci.adresse)}" placeholder="12 rue des Artisans, 21000 Dijon">
-      <label>Horaires</label><input id="cfg_hor" value="${esc(ci.horaires)}" placeholder="Lun–Ven : 8h–18h">
-      <label style="margin-top:10px">Couleur par défaut de l'app (pour tout le monde)</label>
-      <p class="note" style="margin:2px 0 6px">Choisis parmi les couleurs de l'app. Touche Blanc ou Noir pour voir les variantes « + une couleur ».</p>
-      ${devColorPicker()}
-      <label style="margin-top:10px">Couleurs proposées aux utilisateurs</label>
-      <p class="note" style="margin:2px 0 6px">Coche les couleurs que les utilisateurs pourront choisir dans leur menu. Les autres seront masquées. La couleur par défaut reste toujours proposée.</p>
-      ${devColorAvailablePicker()}
-      <div class="row" style="margin-top:10px"><div><label>Pointage horaire</label>
-        <div class="row" style="gap:6px"><button class="btn ${pointageOn()?'primary':'ghost'} mini" onclick="devSetPointage(true)">Activé</button><button class="btn ${!pointageOn()?'primary':'ghost'} mini" onclick="devSetPointage(false)">Désactivé</button></div></div>
-      </div>
-      <label style="margin-top:10px">Facturation dans l'app</label>
-      <div class="row" style="gap:6px"><button class="btn ${factuOn()?'primary':'ghost'} mini" onclick="devSetFactu(true)">Activée</button><button class="btn ${!factuOn()?'primary':'ghost'} mini" onclick="devSetFactu(false)">Désactivée</button></div>
-      <label style="margin-top:10px">Abonnement du client</label>
-      <div class="row" style="gap:6px"><button class="btn mini" onclick="devSetPlan('basique')" style="flex:1;border:2px solid ${!isPremium()?'#b7bbc4':'var(--line)'};background:${!isPremium()?'linear-gradient(135deg,#eceef2,#c2c6cf)':'var(--card2)'};color:${!isPremium()?'#2a2e35':'var(--txt)'}">Basique (argent)</button><button class="btn mini" onclick="devSetPlan('premium')" style="flex:1;border:2px solid ${isPremium()?'#d4af37':'var(--line)'};background:${isPremium()?'linear-gradient(135deg,#f6d365,#d4af37)':'var(--card2)'};color:${isPremium()?'#3a2e00':'var(--txt)'}">Premium (or)</button></div>
-      <p class="note" style="font-size:11px;margin-top:4px">Premium = toute l'IA + facturation électronique (Factur-X). Basique = sans IA ni Factur-X (facturation de confort seulement). Ton choix s'applique automatiquement au patron.</p>
-      <label style="margin-top:14px">Facturation électronique — suspension (démo)</label>
-      <div class="row" style="gap:6px"><button class="btn ${!CONFIG_DB.facturXSuspendu?'primary':'ghost'} mini" onclick="devSetFacturXSuspend(false)">Active</button><button class="btn ${CONFIG_DB.facturXSuspendu?'primary':'ghost'} mini" onclick="devSetFacturXSuspend(true)">Suspendue</button></div>
-      <p class="note" style="font-size:11px;margin-top:4px">Suspendue = masque toute la Factur-X / e-reporting (pour la démo). Réactivation automatique le 15 août.</p>
-      <p class="note" style="font-size:11px;margin-top:4px">Désactive si le client a déjà un logiciel de facturation (évite les doublons). Le suivi de chantier et les devis restent actifs.</p>
-      <div class="row" style="margin-top:10px"><div><label>Préfixe devis</label><input id="cfg_devpre" type="text" value="${devisPrefix()}" maxlength="6"></div>
-        <div><label>Prochain n° devis</label><input id="cfg_devnum" type="number" min="1" value="${(CONFIG_DB.devisCounter||0)+1}"></div></div>
-      <div class="row" style="margin-top:10px"><div><label>Préfixe facture</label><input id="cfg_factpre" type="text" value="${factPrefix()}" maxlength="6"></div>
-        <div><label>Prochain n° de facture</label><input id="cfg_fact" type="number" min="1" value="${(CONFIG_DB.factCounter||0)+1}" title="Numéro qui sera attribué à la prochaine facture"></div></div>
-      <button class="btn primary" style="width:100%;margin-top:10px" onclick="devSaveConfig()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Enregistrer la configuration</button>
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg> Rôles & 📋 Modèles</h2></div>
-      <p class="note">Gère les rôles/permissions et les modèles de chantier de l'entreprise (mêmes outils que le patron).</p>
-      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="openRolesManager()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg> Gérer les rôles & permissions</button>
-      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="openModelesManager()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h6"/></svg> Gérer les modèles de chantier</button>
-      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="openEtapesManager()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-3"/></svg> Gérer les étapes d'avancement</button>
     </div>
 
     <div class="card">
@@ -3002,40 +3029,26 @@ function renderDev(){
       <button class="btn ghost" style="width:100%;margin-top:10px" onclick="exportData()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Exporter / sauvegarder les données</button>
     </div>
 
-    ${diagCard()}
 
-    ${deployCard()}
 
-    ${devClientCard()}
+    
 
-    ${annonceCard()}
 
-    ${packCard()}
 
-    ${iaUsageCard()}
+    
 
-    <div class="card">
-      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21h13"/><path d="M3 17 12 8l5 5-6 6H6z"/></svg> Réinitialiser pour un nouveau client</h2></div>
-      <p class="note">Avant de livrer l'app à un artisan, efface les données de test.</p>
-      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="devClearChantiers()">Effacer tous les chantiers</button>
-      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="devClearChantiersTeam()">Effacer chantiers + équipe</button>
-      <button class="btn danger" style="width:100%;margin-top:10px" onclick="devResetAll()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.5 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg> Tout réinitialiser (chantiers + équipe + réglages)</button>
-      <p class="note" style="margin-top:8px;font-size:11px">« Tout réinitialiser » supprime aussi les comptes équipe : le premier qui se reconnecte redevient patron.</p>
-    </div>
     <button class="btn ghost" style="width:100%" onclick="devSignOut()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg> Me déconnecter</button>
     <p class="note" style="text-align:center;margin-top:8px;font-size:11px">Déconnecte-toi avant de créer le compte patron (sinon l'app te demande un code d'équipe).</p>
     <p class="note" style="text-align:center;margin-top:6px;font-size:11px">Taloche · ${APP_VERSION} · espace privé</p>
   </div>`;
 }
 function devSignOut(){ closeModal(); ME=null; DEV_ACCESS=false; CUR_CHANTIER=null; TAB='chantiers'; SCREEN='entry'; if(useFB||BACKEND==='supabase'){ AUTH.deconnexion(); } AUTH_USER=null; render(); toTop(); toast("Déconnecté ✅"); }
-function devOpenAsBoss(){ ME={nom:'Accès dev',role:'boss',_dev:true}; if(!AUTH_USER) AUTH_USER={uid:'dev-admin'}; DEV_ACCESS=true; SCREEN='team'; TAB='chantiers'; CUR_CHANTIER=null; ARCH_VIEW=false; CLIENTS_VIEW=false; render(); toTop(); }
 function devSetPointage(v){ CONFIG_DB.pointage=v; saveConfigDB(); renderDev(); }
 function devSetFactu(v){ CONFIG_DB.factuOff=!v; saveConfigDB(); renderDev(); }
 function devSetIA(v){ CONFIG_DB.iaOff=!v; saveConfigDB(); renderDev(); }
 function devSetFacturX(v){ CONFIG_DB.facturXOff=!v; saveConfigDB(); renderDev(); }
 function devSetPlan(p){ CONFIG_DB.plan=p; saveConfigDB(); renderDev(); }
 function devSetFacturXSuspend(v){ CONFIG_DB.facturXSuspendu=v; saveConfigDB(); renderDev(); toast(v?("Factur-X suspendu — réactivation automatique le "+facturXDateFr()):"Factur-X activé"); }
-function devOpenClient(id){ const c=CHANTIERS[id]; if(!c) return; CLIENT={code:c.clientCode||'',nom:'Aperçu client',chantierId:id}; DEV_ACCESS=true; SCREEN='client'; render(); toTop(); }
 function devSetDefaultColor(id){ CONFIG_DB.couleurDefaut=id; saveConfigDB(); if(!lsGet(LS_THEME,null)){ applyTheme(); } cfgRerender(); }
 function devSetCustomColor(hex){ if(!hex||String(hex).charAt(0)!=='#') return; favColorAdd(hex); devSetDefaultColor(hex); }
 function devColorPicker(){
@@ -3075,7 +3088,9 @@ function devToggleColor(id){
 function devSaveConfig(){
   if(!CONFIG_DB.contact) CONFIG_DB.contact={};
   CONFIG_DB.nom=val('cfg_nom')||CONFIG.NOM_ENTREPRISE; CONFIG_DB.slogan=val('cfg_slogan');
-  CONFIG_DB.contact.tel=val('cfg_tel'); CONFIG_DB.contact.email=val('cfg_email'); CONFIG_DB.contact.adresse=val('cfg_adr'); CONFIG_DB.contact.horaires=val('cfg_hor');
+  /* Les coordonnees ne se saisissent plus ici : l'artisan les remplit
+     dans ses propres reglages. On ne touche donc pas a CONFIG_DB.contact,
+     sinon on effacerait les siennes en enregistrant. */
   const _fe=document.getElementById('cfg_fact'); if(_fe){ const nextF=parseInt(_fe.value,10); if(!isNaN(nextF)&&nextF>0) CONFIG_DB.factCounter=nextF-1; }
   const _de=document.getElementById('cfg_devnum'); if(_de){ const nextD=parseInt(_de.value,10); if(!isNaN(nextD)&&nextD>0) CONFIG_DB.devisCounter=nextD-1; }
   const dp=(val('cfg_devpre')||'').trim().toUpperCase(); if(dp) CONFIG_DB.devisPrefix=dp;
@@ -3488,7 +3503,18 @@ function demoEnrichir(ids){
   try{ saveConfigDB(); }catch(_){ }
 }
 
+/* Les donnees de demo ecrivent de vrais chantiers et une vraie equipe.
+   Depuis qu'une seule base porte tous les clients, les lancer chez un
+   artisan en activite saccagerait son travail. On les reserve donc aux
+   entreprises dont l'adresse commence par « demo ». */
+function demoAutorisee(){
+  try{ return !!(FANTOME && /^demo/.test(FANTOME.slug||'')); }catch(_){ return false; }
+}
+function demoRefus(){
+  toast("Réservé aux clients de démonstration (adresse commençant par « demo »).");
+}
 function devLoadDemo(){
+  if(!demoAutorisee()) return demoRefus();
   if(instanceEnProd()){
     dangerGuard("Charger la démo",
       "🚨 <b>Cette instance contient de VRAIES données</b> (documents publiés, heures pointées ou fiche client remplie). Charger la démo <b>écrasera les chantiers et l'équipe de ce client</b>.",
@@ -3498,6 +3524,7 @@ function devLoadDemo(){
   devLoadDemoGo();
 }
 function devLoadDemoGo(){
+  if(!demoAutorisee()) return demoRefus();
   const _sel=Object.keys(DEMO_SEL).filter(k=>DEMO_SEL[k]);
   const _trades=_sel.length?_sel:Object.keys(DEMO_TRADES);
   if((Object.keys(CHANTIERS).length||Object.keys(VEHICULES).length) && !instanceEnProd() && !confirm("Charger la démo ? Les chantiers et véhicules actuels seront remplacés.")) return;
@@ -3549,6 +3576,7 @@ function devClearChantiers(){
     "SUPPRIMER", devClearChantiersGo);
 }
 function devClearChantiersGo(){
+  if(!demoAutorisee()) return demoRefus();
   if(useFB) BS.supprimer('chantiers'); else { CHANTIERS={}; lsSet('batisuivi_chantiers',{}); }
   CHANTIERS={};
   toast("Chantiers effacés"); render();
@@ -3559,6 +3587,7 @@ function devClearChantiersTeam(){
     "SUPPRIMER", devClearChantiersTeamGo);
 }
 function devClearChantiersTeamGo(){
+  if(!demoAutorisee()) return demoRefus();
   if(useFB){
     ['chantiers','team','vehicules','planning','notesfrais','chat'].forEach(k=>{ BS.supprimer(k).catch(()=>{}); });
   } else {

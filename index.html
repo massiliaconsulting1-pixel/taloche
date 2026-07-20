@@ -1988,6 +1988,7 @@ function parcLigne(e){
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn primary mini" onclick="ficheOuvrir('${esc(e.slug)}')">Fiche</button>
       <button class="btn ghost mini" onclick="parcCopier('${esc(e.slug)}')">Lien</button>
       <button class="btn ghost mini" onclick="parcBasculer('${esc(e.slug)}',${e.actif?'false':'true'})">${e.actif?'Suspendre':'Réactiver'}</button>
     </div>
@@ -2441,13 +2442,20 @@ function renderMarge(){
   </div>`;
 }
 
-/* ====================== FICHE CLIENT ======================
+/* ====================== FICHE CLIENT ====================== */
 let FICHE=null, FICHE_ETAT='vide', FICHE_ERR='', FICHE_SLUG='';
 
 function ficheOuvrir(slug){
-  FICHE_SLUG=slug; FICHE=null; FICHE_ETAT='chargement'; FICHE_ERR='';
-  SCREEN='fiche'; render(); toTop();
-  ficheCharger();
+  try{
+    if(!slug){ toast("Client inconnu."); return; }
+    FICHE_SLUG=slug; FICHE=null; FICHE_ETAT='chargement'; FICHE_ERR='';
+    SCREEN='fiche'; render(); toTop();
+    ficheCharger();
+  }catch(e){
+    /* si quelque chose manque, on le dit au lieu de ne rien faire */
+    toast("Ouverture impossible : "+((e&&e.message)||'erreur'));
+    console.error('ficheOuvrir', e);
+  }
 }
 function ficheRetour(){ SCREEN='parc'; render(); toTop(); }
 
@@ -2614,7 +2622,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v238 · 20/07";
+const APP_VERSION="v239 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>

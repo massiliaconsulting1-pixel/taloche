@@ -36,7 +36,7 @@ const CONFIG = {
   POINTAGE_ACTIF: false,                 // true = active le pointage horaire des employés
   // ← Coordonnées affichées aux clients dans leur page Contact (personnalise par entreprise)
   TELEPHONE: "06 12 34 56 78",
-  EMAIL: "contact@taloche.fr",
+  EMAIL: "massiliaconsulting1@gmail.com",
   ADRESSE_ENTREPRISE: "12 rue des Artisans, 21000 Dijon",
   HORAIRES: "Lun–Ven : 8h–18h"
 };
@@ -536,6 +536,17 @@ body.big-text{zoom:1.18}
    ================================================================== */
 const app=document.getElementById('app');
 const navEl=document.getElementById('nav');
+/* ==================================================================
+   L'IDENTITE TALOCHE
+   ------------------------------------------------------------------
+   ATTENTION — marque blanche : ce logo ne doit JAMAIS apparaitre chez
+   un artisan. Il ne sert que (1) sur l'accueil taloche.fr, quand aucun
+   artisan n'est identifie, et (2) comme icone de repli sur le telephone
+   quand l'artisan n'a mis ni logo ni icone.
+   Les devis et factures d'un artisan portent SON logo, ou aucun.
+   ================================================================== */
+const TALOCHE_ICONE = "data:image/png;base64,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";
+
 const useFB = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
 
 /* ==================================================================
@@ -1442,7 +1453,13 @@ function colorFor(s){ let h=0; for(let i=0;i<(s||'').length;i++) h=s.charCodeAt(
 function toast(msg){ let el=document.getElementById('toast'); if(!el){ el=document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el);} el.textContent=msg; el.classList.add('show'); clearTimeout(window._tt); window._tt=setTimeout(()=>el.classList.remove('show'),2600); }
 function coName(){ return (CONFIG_DB&&CONFIG_DB.nom)||CONFIG.NOM_ENTREPRISE; }
 function coSlogan(){ return (CONFIG_DB&&CONFIG_DB.slogan!==undefined)?CONFIG_DB.slogan:(CONFIG.SLOGAN||''); }
-function coLogo(){ return (CONFIG_DB&&CONFIG_DB.logo!==undefined&&CONFIG_DB.logo!==null)?CONFIG_DB.logo:(CONFIG.LOGO_BASE64||''); }
+function coLogo(){
+  const perso=(CONFIG_DB&&CONFIG_DB.logo!==undefined&&CONFIG_DB.logo!==null)?CONFIG_DB.logo:(CONFIG.LOGO_BASE64||'');
+  if(perso) return perso;
+  /* Aucun artisan identifie : on est sur l'accueil Taloche. */
+  if(!(CONFIG_DB&&CONFIG_DB.nom)) return TALOCHE_ICONE;
+  return '';   /* artisan sans logo : on n'impose rien, surtout pas sur ses documents */
+}
 function logoHTML(){ return coLogo() ? `<img src="${coLogo()}" alt="">` : '🏗️'; }
 
 // ---- étapes standard d'un chantier ----
@@ -1522,11 +1539,11 @@ function applyAppIcons(){
   try{ const m=document.querySelector('meta[name="application-name"]'); if(m) m.setAttribute('content',nm); }catch(_){ }
   try{
     const customIcon=(CONFIG_DB&&CONFIG_DB.appIcon)||'';
-    const logo=coLogo(); if(!customIcon && !logo) return;
+    const logo=coLogo() || TALOCHE_ICONE;   /* repli : l'icone Taloche plutot qu'aucune icone */
     const apply=(icon)=>{
       document.querySelectorAll('link[rel="apple-touch-icon"]').forEach(l=>l.href=icon);
       document.querySelectorAll('link[rel="icon"]').forEach(l=>l.href=icon);
-      const man={ name:nm, short_name:nm, display:'standalone', background_color:'#0e1525', theme_color:'#0e1525', start_url:'.', icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
+      const man={ name:nm, short_name:nm, display:'standalone', background_color:'#ff8a3d', theme_color:'#ff8a3d', start_url:'.', icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
       const blob=new Blob([JSON.stringify(man)],{type:'application/manifest+json'});
       const url=URL.createObjectURL(blob);
       let ml=document.querySelector('link[rel="manifest"]'); if(!ml){ ml=document.createElement('link'); ml.rel='manifest'; document.head.appendChild(ml); }
@@ -1869,6 +1886,7 @@ function renderEntry(){
       <div style="display:flex;flex-direction:column;align-items:center">${themeSwatches(34)}</div>
     </div>
     <p class="note" style="text-align:center;margin-top:24px;font-size:11px;cursor:pointer" onclick="devStart()">Propulsé par Taloche · ${APP_VERSION}</p>
+    <p class="note" style="text-align:center;margin-top:4px;font-size:11px"><span style="cursor:pointer;text-decoration:underline" onclick="mentionsLegales()">Mentions légales</span> · <span style="cursor:pointer;text-decoration:underline" onclick="politiqueConfidentialite()">Confidentialité</span></p>
   </div>`;
 }
 function goClientLogin(){ SCREEN='client'; CLIENT=null; render(); }
@@ -1877,7 +1895,7 @@ function backToEntry(){ DEV_ACCESS=false; SCREEN='entry'; render(); toTop(); }
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v228 · 20/07";
+const APP_VERSION="v230 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -2742,7 +2760,8 @@ function openClientMenu(){
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="clientHelp()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.5 1.5c0 1.5-2 2-2 3"/><path d="M12 17h.01"/></svg> Guide d'utilisation</button>
     <button id="bigTextBtn" class="btn ghost" style="width:100%;margin-top:10px" onclick="toggleBigText()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h9v2M8.5 5v13M6.5 18h4"/><path d="M14 13v-1h6v1M17 12v6M15.5 18h3"/></svg> Gros texte : ${bigText()?'activé':'désactivé'}</button>
     <button class="btn danger" style="width:100%;margin-top:20px" onclick="clientLogout()">${BOSS_PREVIEW?'↩ Retour au chantier':(DEV_ACCESS?'↩ Revenir à l\'espace dev':'Quitter mon espace')}</button>
-    <p class="note" style="text-align:center;margin-top:10px;font-size:11px">Propulsé par Taloche · ${APP_VERSION}</p>`);
+    <p class="note" style="text-align:center;margin-top:10px;font-size:11px">Propulsé par Taloche · ${APP_VERSION}</p>
+    <p class="note" style="text-align:center;margin-top:4px;font-size:11px"><span style="cursor:pointer;text-decoration:underline" onclick="mentionsLegales()">Mentions légales</span> · <span style="cursor:pointer;text-decoration:underline" onclick="politiqueConfidentialite()">Confidentialité</span></p>`);
 }
 function clientContact(){
   const ci=contactInfo();
@@ -3258,6 +3277,149 @@ function avantApresCard(id,c){
 </script>
 <script>
 /* ====================== APP ÉQUIPE ====================== */
+/* ==================================================================
+   MENTIONS LEGALES ET CONFIDENTIALITE
+   Obligatoires des lors qu'un service est accessible en ligne.
+   Accessibles depuis le pied de page de l'accueil et de l'espace client.
+   ================================================================== */
+const EDITEUR = {
+  raison:  'Massilia Consulting',
+  statut:  'Entreprise individuelle (micro-entreprise)',
+  dir:     'Lenny IMBAULT',
+  adresse: '25 rue Ronde, 21800 Quetigny, France',
+  siren:   '905 248 373',
+  siret:   '90524837300029',
+  ape:     '70.21Z',
+  tva:     'TVA non applicable, art. 293 B du CGI',
+  email:   'massiliaconsulting1@gmail.com',
+  tel:     '07 59 57 40 33'
+};
+
+function mentionsLegales(){
+  const E = EDITEUR;
+  openModal(`
+  <h3 style="margin:0 0 4px">Mentions légales</h3>
+  <p class="note" style="margin:0 0 14px;font-size:11px">Taloche — mise à jour du 20 juillet 2026</p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Éditeur du service</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    <b>${E.raison}</b> — ${E.statut}<br>
+    Directeur de la publication : ${E.dir}<br>
+    ${E.adresse}<br>
+    SIREN ${E.siren} · SIRET ${E.siret} · Code APE ${E.ape}<br>
+    ${E.tva}<br>
+    ${E.email} · ${E.tel}
+  </p>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    <b>Taloche</b> est une marque et une application éditées par ${E.raison}.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Hébergement</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Les données sont hébergées dans l'Union européenne (Paris) par <b>Supabase</b>.<br>
+    L'application est diffusée par <b>GitHub Pages</b> (GitHub, Inc.).<br>
+    Le nom de domaine est géré par <b>OVH SAS</b>, 2 rue Kellermann, 59100 Roubaix.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Propriété intellectuelle</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    L'application, son code et sa structure sont la propriété exclusive de ${E.raison}.
+    Les logos, couleurs et contenus déposés par chaque entreprise utilisatrice
+    restent la propriété de celle-ci.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Médiation et litiges</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 16px">
+    Le service s'adresse à des professionnels. Tout litige relève du droit français
+    et du tribunal compétent de Dijon, après recherche d'une solution amiable.
+  </p>
+
+  <div style="display:flex;gap:8px">
+    <button class="btn ghost" onclick="politiqueConfidentialite()">Confidentialité</button>
+    <button class="btn" onclick="closeModal()">Fermer</button>
+  </div>`);
+}
+
+function politiqueConfidentialite(){
+  const E = EDITEUR;
+  openModal(`
+  <h3 style="margin:0 0 4px">Politique de confidentialité</h3>
+  <p class="note" style="margin:0 0 14px;font-size:11px">Taloche — mise à jour du 20 juillet 2026</p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Qui fait quoi</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Chaque entreprise du bâtiment utilisant Taloche est <b>responsable</b> des données
+    qu'elle enregistre sur ses chantiers, son équipe et ses clients.
+    ${E.raison} agit en qualité de <b>sous-traitant</b> : nous hébergeons et faisons
+    fonctionner l'outil, sans jamais utiliser ces données à nos propres fins.
+  </p>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Nous ne vendons aucune donnée, n'affichons aucune publicité, et n'utilisons pas
+    vos contenus pour entraîner des modèles d'intelligence artificielle.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Ce qui est enregistré</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    <b>Pour l'équipe :</b> nom, adresse électronique, rôle, coût horaire, heures pointées,
+    absences, notes de frais, documents professionnels et habilitations.<br>
+    <b>Pour les clients du chantier :</b> nom, coordonnées, adresse du chantier,
+    photographies, messages, devis et factures, signature du devis.<br>
+    <b>Techniquement :</b> date de connexion et journal des erreurs.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Où vont les données</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Tout est hébergé <b>en France</b>, chez Supabase (Paris). Les données de chaque
+    entreprise sont cloisonnées au niveau de la base elle-même : personne ne peut
+    consulter celles d'une autre entreprise.
+  </p>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    <b>Exception : l'intelligence artificielle.</b> Lorsqu'un utilisateur déclenche
+    lui-même une fonction d'IA (compte-rendu dicté, assistant, lecture de ticket,
+    devis ou projection à partir d'une photo), le contenu concerné est transmis à
+    <b>Anthropic</b> ou <b>Google</b>, aux États-Unis, encadré par les clauses
+    contractuelles types européennes. Ces fonctions relèvent de la formule Premium
+    et peuvent être désactivées sur demande.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Combien de temps</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Les données sont conservées pendant toute la durée de l'abonnement, puis
+    <b>30 jours</b>, délai pendant lequel un export complet peut être demandé.
+    Elles sont ensuite supprimées définitivement.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Sécurité</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Connexion chiffrée, mots de passe chiffrés, droits déterminés côté serveur,
+    photographies stockées dans un espace privé jamais accessible par une adresse
+    publique, accès client limité à un seul chantier et protégé contre les
+    tentatives répétées, sauvegardes quotidiennes.
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Vos droits</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 14px">
+    Vous disposez d'un droit d'accès, de rectification, d'effacement, d'opposition,
+    de limitation et de portabilité. <b>Adressez votre demande en priorité à
+    l'entreprise du bâtiment</b> qui gère votre chantier ou votre contrat de travail :
+    c'est elle qui est responsable de vos données.
+    Si vous ne savez pas à qui vous adresser, écrivez-nous à ${E.email} et nous
+    transmettrons. Vous pouvez également saisir la CNIL (www.cnil.fr).
+  </p>
+
+  <h4 style="margin:0 0 6px;font-size:13px">Cookies</h4>
+  <p class="note" style="font-size:12px;line-height:1.6;margin:0 0 16px">
+    Taloche n'utilise <b>aucun cookie publicitaire ni de mesure d'audience</b>.
+    Seul un stockage technique local est utilisé pour vous maintenir connecté
+    et permettre le fonctionnement hors-ligne. Aucun consentement n'est donc requis.
+  </p>
+
+  <div style="display:flex;gap:8px">
+    <button class="btn ghost" onclick="mentionsLegales()">Mentions légales</button>
+    <button class="btn" onclick="closeModal()">Fermer</button>
+  </div>`);
+}
+
 function openModal(html){ let m=document.getElementById('modal'); if(!m){ m=document.createElement('div'); m.id='modal'; m.className='modal'; document.body.appendChild(m);} m.innerHTML=`<div class="modal-card">${html}</div>`; m.classList.remove('hidden'); m.onclick=e=>{ if(e.target===m) closeModal(); }; bindSheetDrag(); }
 function closeModal(){ const m=document.getElementById('modal'); if(m) m.classList.add('hidden'); }
 function bindSheetDrag(){

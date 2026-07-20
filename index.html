@@ -919,7 +919,7 @@ const BS = {
        l'assistant IA (prive a chaque personne). ------------------- */
     versMessage(x){
       const m = Object.assign({}, x.detail || {});
-      m.from = x.auteur_id || '';
+      m.from = (m.ia === true) ? 'ai' : (x.auteur_id || '');
       m.nom  = x.nom || '';
       m.txt  = x.texte || '';
       m.ts   = x.cree_le ? new Date(x.cree_le).getTime() : Date.now();
@@ -938,7 +938,9 @@ const BS = {
           if(!out.dm[k]) out.dm[k] = {};
           out.dm[k][x.id] = m;
         } else if(x.canal === 'ia'){
-          const u = x.auteur_id || '';
+          /* une reponse d'assistant n'a pas d'auteur : son proprietaire
+             est celui a qui elle est destinee */
+          const u = x.auteur_id || x.destinataire_id || '';
           if(!out.ai[u]) out.ai[u] = {};
           out.ai[u][x.id] = m;
         } else {
@@ -961,11 +963,25 @@ const BS = {
         const bouts = String(cle).split('__');
         destinataire = bouts.find(function(b){ return b && b !== propre.from; }) || bouts[0] || null;
       }
+      /* Reponse de l'assistant : « ai » n'est pas une personne, et la
+         colonne auteur_id n'accepte que de vrais identifiants. On la
+         laisse vide, on note le proprietaire de la conversation dans
+         destinataire_id, et on marque la ligne comme venant de l'IA.
+         Sans cela l'enregistrement etait refuse par la base et la
+         reponse disparaissait au rechargement de la page. */
+      let auteur = propre.from || null;
+      if(canal === 'ia' && auteur === 'ai'){
+        auteur = null;
+        destinataire = cle || null;
+        detail.ia = true;
+      } else if(canal === 'ia'){
+        destinataire = null;
+      }
       const ligne = {
         id: id,
         entreprise_id: BS._sb.entrepriseId,
         canal: canal,
-        auteur_id: propre.from || null,
+        auteur_id: auteur,
         destinataire_id: destinataire,
         nom: propre.nom || '',
         texte: propre.txt || '',
@@ -1142,7 +1158,7 @@ const BS = {
       let md = chemin.match(/^chat\/dm\/([^/]+)\/([^/]+)$/);
       if(md) return BS._sb.ecrireMessage('direct', md[2], valeur, md[1]);
       let ma = chemin.match(/^chat\/ai\/([^/]+)\/([^/]+)$/);
-      if(ma) return BS._sb.ecrireMessage('ia', ma[2], valeur, null);
+      if(ma) return BS._sb.ecrireMessage('ia', ma[2], valeur, ma[1]);
 
       /* planning/<semaine> : une semaine entiere */
       let mp = chemin.match(/^planning\/(.+)$/);
@@ -1855,6 +1871,7 @@ function render(){
   if(SCREEN==='dev'){ navEl.classList.add('hidden'); return renderDev(); }
   if(SCREEN==='parc'){ navEl.classList.add('hidden'); return renderParc(); }
   if(SCREEN==='fiche'){ navEl.classList.add('hidden'); return renderFiche(); }
+  if(SCREEN==='marge'){ navEl.classList.add('hidden'); return renderMarge(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
     if(useFB && !AUTH_USER){ navEl.classList.add('hidden'); return renderTeamAuth(); }
@@ -2137,7 +2154,106 @@ function parcCopierSMS(){
   parcCopierTexte(m, "SMS copié ✅");
 }
 
-/* ====================== FICHE CLIENT ====================== */
+/* ====================== MA MARGE ======================
+   Ce que chaque client rapporte, face a ce que son IA me coute.
+   Les prix sont affiches HT. Reference mensuelle = le tarif
+   trimestriel divise par trois (90 EUR -> 30, 180 EUR -> 60).
+   Un client paye a l'annee coute un peu moins cher : la marge
+   reelle est alors legerement inferieure a celle affichee. */
+let MARGE=null, MARGE_ETAT='vide', MARGE_ERR='';
+const PRIX_MOIS_HT = { basique:30, premium:60 };
+
+function margeOuvrir(){ SCREEN='marge'; MARGE=null; MARGE_ETAT='chargement'; MARGE_ERR=''; render(); toTop(); margeCharger(); }
+function margeRetour(){ SCREEN='parc'; render(); toTop(); }
+
+function margeCharger(){
+  MARGE_ETAT='chargement'; MARGE_ERR='';
+  if(SCREEN==='marge') renderMarge();
+  adminApiCall('marge',{}).then(function(r){
+    MARGE = r || null; MARGE_ETAT='pret';
+    if(SCREEN==='marge') renderMarge();
+  }).catch(function(e){
+    MARGE_ERR = (e && e.message) ? e.message : "Service indisponible.";
+    MARGE_ETAT='erreur';
+    if(SCREEN==='marge') renderMarge();
+  });
+}
+
+function margeEur(n){ return (Number(n)||0).toFixed(2).replace('.',',')+' €'; }
+function margePrix(f){ return PRIX_MOIS_HT[f] || PRIX_MOIS_HT.basique; }
+
+function renderMarge(){
+  let corps='';
+
+  if(MARGE_ETAT==='chargement'){
+    corps = `<div class="card"><p class="note" style="text-align:center">Calcul en cours…</p></div>`;
+  }
+  else if(MARGE_ETAT==='erreur'){
+    corps = `<div class="card" style="border-color:var(--warn)">
+      <p class="note"><b>Calcul impossible.</b></p>
+      <p class="note" style="margin-top:6px">${esc(MARGE_ERR)}</p>
+      <button class="btn ghost" style="width:100%;margin-top:10px" onclick="margeCharger()">Réessayer</button>
+    </div>`;
+  }
+  else if(MARGE){
+    const clients=(MARGE.clients||[]).map(function(c){
+      const prix=margePrix(c.formule);
+      const cout=Number(c.cout_ia)||0;
+      return Object.assign({}, c, { prix:prix, cout:cout, marge:prix-cout });
+    }).sort(function(a,b){ return a.marge-b.marge; });   // les moins rentables en tete
+
+    const totalPrix = clients.reduce(function(t,c){ return t+c.prix; },0);
+    const totalCout = clients.reduce(function(t,c){ return t+c.cout; },0);
+    const totalMarge = totalPrix-totalCout;
+    const taux = totalPrix>0 ? Math.round(totalMarge/totalPrix*100) : 100;
+
+    corps = `<div class="card">
+      <div class="kpis" style="margin-bottom:8px">
+        <div class="kpi acc"><div class="big" style="font-size:20px">${margeEur(totalPrix)}</div><div class="lbl">Encaissé / mois</div></div>
+        <div class="kpi"><div class="big" style="font-size:20px">${margeEur(totalCout)}</div><div class="lbl">Coût IA</div></div>
+        <div class="kpi"><div class="big" style="font-size:20px">${taux}%</div><div class="lbl">Marge</div></div>
+      </div>
+      <p class="note">Il te reste <b>${margeEur(totalMarge)}</b> par mois sur ${clients.length} client(s) actif(s), avant tes autres frais.</p>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Client par client</h2></div>
+      <p class="note" style="margin-bottom:8px;font-size:11.5px">Les moins rentables sont en haut.</p>
+      ${clients.length ? clients.map(function(c){
+        const pct = c.prix>0 ? Math.round(c.cout/c.prix*100) : 0;
+        const col = pct>=50 ? 'var(--danger)' : (pct>=25 ? 'var(--warn)' : 'var(--ok)');
+        return `<div class="task-row" style="align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <b style="font-size:13px">${esc(c.nom||c.slug)}</b>
+            <span class="tag" style="margin-left:6px">${c.formule==='premium'?'Premium':'Basique'}</span>
+            <div class="note" style="font-size:11px;margin-top:3px">
+              ${margeEur(c.prix)} encaissés · ${margeEur(c.cout)} d'IA · <b style="color:${col}">${pct}% du prix</b>
+            </div>
+          </div>
+          <b style="font-size:14px;white-space:nowrap">${margeEur(c.marge)}</b>
+        </div>`;
+      }).join('') : `<p class="note">Aucun client actif.</p>`}
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Ce que ce chiffre ne dit pas</h2></div>
+      <p class="note" style="font-size:11.5px">Seul le <b>coût de l'IA</b> est déduit ici. L'hébergement, ton temps de mise en route et le support n'y sont pas. La mise en service à 590 € HT n'y est pas non plus : c'est un encaissement unique, pas du récurrent.</p>
+      <p class="note" style="font-size:11.5px;margin-top:6px">Le mois vient de commencer ? Alors le coût affiché n'est pas encore celui d'un mois complet.</p>
+    </div>`;
+  }
+
+  app.innerHTML = `<div class="center-wrap" style="justify-content:flex-start;max-width:560px">
+    <button class="backbtn" style="align-self:flex-start" onclick="margeRetour()"><span class="ar">←</span> Parc client</button>
+    <div style="text-align:center;margin:8px 0 16px">
+      <h1 style="font-size:22px">Ma marge</h1>
+      <p class="note" style="margin-top:6px">Mois en cours${MARGE&&MARGE.mois?(' · '+esc(MARGE.mois)):''} · montants HT</p>
+    </div>
+    ${corps}
+    <button class="btn ghost" style="width:100%;margin-top:10px" onclick="margeCharger()">Rafraîchir</button>
+  </div>`;
+}
+
+/* ====================== FICHE CLIENT ======================
 let FICHE=null, FICHE_ETAT='vide', FICHE_ERR='', FICHE_SLUG='';
 
 function ficheOuvrir(slug){
@@ -2298,7 +2414,8 @@ function renderParc(){
       <h1 style="font-size:22px">Parc client</h1>
       <p class="note" style="margin-top:6px">Tous les artisans Taloche · lecture via le serveur</p>
     </div>
-    <button class="btn primary" style="width:100%;margin-bottom:12px" onclick="parcNouveau()">+ Nouveau client</button>
+    <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="parcNouveau()">+ Nouveau client</button>
+    <button class="btn ghost" style="width:100%;margin-bottom:12px" onclick="margeOuvrir()">Ma marge</button>
     ${corps}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
     <p class="note" style="text-align:center;margin-top:14px;font-size:11px">Chaque consultation est journalisée côté serveur.</p>
@@ -2307,7 +2424,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v235 · 20/07";
+const APP_VERSION="v236 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>

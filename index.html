@@ -1959,7 +1959,10 @@ function parcLigne(e){
         ${e.nb_utilisateurs} membre(s) · ${e.nb_chantiers} chantier(s) · ${pastille} · ${parcDepuis(e.derniere_activite)}
       </div>
     </div>
-    <button class="btn ghost mini" onclick="parcCopier('${esc(e.slug)}')">Copier le lien</button>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn ghost mini" onclick="parcCopier('${esc(e.slug)}')">Lien</button>
+      <button class="btn ghost mini" onclick="parcBasculer('${esc(e.slug)}',${e.actif?'false':'true'})">${e.actif?'Suspendre':'Réactiver'}</button>
+    </div>
   </div>`;
 }
 
@@ -2064,8 +2067,31 @@ function parcResultat(){
       <p style="font-size:26px;font-family:'Sora';font-weight:800;letter-spacing:3px;margin-top:2px">${esc(c.code_patron||'')}</p>
     </div>
     <button class="btn primary" style="width:100%;margin-top:12px" onclick="parcCopierMessage()">Copier le message d'installation</button>
+    <button class="btn ghost" style="width:100%;margin-top:6px" onclick="parcCopierSMS()">Copier la version courte (SMS)</button>
     <button class="btn ghost" style="width:100%;margin-top:6px" onclick="parcCopierTexte('${esc(c.code_patron||'')}','Code copié ✅')">Copier seulement le code</button>
     <button class="btn ghost" style="width:100%;margin-top:6px" onclick="closeModal()">Fermer</button>`);
+}
+
+/* ---------- Suspendre / reactiver ----------
+   Rien n'est supprime : on baisse simplement le rideau. L'artisan
+   suspendu ne peut plus atteindre ses donnees, elles restent
+   intactes et reviennent telles quelles a la reactivation. */
+function parcBasculer(slug, versActif){
+  const e = (PARC||[]).filter(function(x){ return x.slug===slug; })[0];
+  const nom = e ? (e.nom||slug) : slug;
+  const q = versActif
+    ? "Réactiver « "+nom+" » ?\n\nL'équipe retrouve immédiatement l'accès à ses chantiers."
+    : "Suspendre « "+nom+" » ?\n\nL'équipe n'aura plus accès à ses données, et la page de l'artisan ne s'affichera plus.\n\nRien n'est supprimé : tout revient à la réactivation.";
+  if(!confirm(q)) return;
+  toast(versActif ? "Réactivation…" : "Suspension…");
+  adminApiCall('basculerActif',{ slug:slug, actif:versActif })
+    .then(function(){
+      toast(versActif ? "Client réactivé ✅" : "Client suspendu ⏸");
+      parcCharger();
+    })
+    .catch(function(err){
+      toast((err && err.message) ? err.message : "Opération impossible.");
+    });
 }
 
 function parcCopierTexte(t,msg){
@@ -2077,14 +2103,37 @@ function parcCopierMessage(){
   const c=PARC_NEW; if(!c) return;
   const m =
     "Bonjour,\n\n" +
-    "Votre application Taloche est prête.\n\n" +
-    "Adresse : " + (c.adresse||'') + "\n" +
-    "Code patron : " + (c.code_patron||'') + "\n\n" +
-    "À la première ouverture : « Je fais partie de l'équipe » puis « Créer mon compte », et saisissez ce code. " +
-    "Il vous donnera le rôle patron. Ajoutez ensuite votre logo et vos couleurs dans les réglages.\n\n" +
-    "Bonne installation,\n" +
-    "Lenny IMBAULT — Massilia Consulting";
+    "Votre application " + (c.entreprise||'') + " est en ligne. Voici vos accès.\n\n" +
+    "Votre adresse : " + (c.adresse||'') + "\n" +
+    "Votre code patron : " + (c.code_patron||'') + "\n\n" +
+    "POUR DÉMARRER, depuis votre téléphone :\n\n" +
+    "1. Ouvrez le lien ci-dessus.\n" +
+    "2. Touchez « Je fais partie de l'équipe », puis « Créer mon compte ».\n" +
+    "3. Saisissez votre code patron : c'est lui qui vous donne tous les droits.\n" +
+    "4. Dans le menu de votre navigateur, choisissez « Ajouter à l'écran d'accueil ».\n" +
+    "   L'application s'installe alors comme une vraie app, avec son icône.\n\n" +
+    "Ce code est le vôtre et ne sert qu'une fois. Vos compagnons rejoindront\n" +
+    "l'équipe plus tard, avec les codes que vous créerez depuis l'application.\n\n" +
+    "Pensez à déposer votre logo et vos couleurs dans les réglages : l'application\n" +
+    "portera vos couleurs, y compris sur vos devis et vos factures.\n\n" +
+    "Une question, une hésitation : appelez-moi, je vous accompagne.\n\n" +
+    "Bien à vous,\n" +
+    "Lenny IMBAULT\n" +
+    "Massilia Consulting\n" +
+    "massiliaconsulting1@gmail.com";
   parcCopierTexte(m, "Message copié ✅");
+}
+
+/* Version courte, pour un SMS ou un WhatsApp juste apres l'appel */
+function parcCopierSMS(){
+  const c=PARC_NEW; if(!c) return;
+  const m =
+    "Bonjour, voici votre application " + (c.entreprise||'') + " :\n" +
+    (c.adresse||'') + "\n" +
+    "Code patron : " + (c.code_patron||'') + "\n" +
+    "Touchez « Je fais partie de l'équipe » puis « Créer mon compte », et entrez ce code. " +
+    "Lenny — Massilia Consulting";
+  parcCopierTexte(m, "SMS copié ✅");
 }
 
 function renderParc(){
@@ -2142,7 +2191,7 @@ function renderParc(){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v233 · 20/07";
+const APP_VERSION="v234 · 20/07";
 function askDevCode(){
   openModal(`<div class="grabber"></div><h2 style="margin-bottom:8px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z"/></svg> Espace développeur</h2>
     <p class="note">Réservé à l'installateur de l'application.</p>
@@ -8658,7 +8707,7 @@ function isDevSpace(){ return (typeof SCREEN!=='undefined' && SCREEN==='dev'); }
 const DIAG_FONCTIONS=[
   {k:'accesClient',           l:"accesClient (accès client)",        p:{action:'load', code:''}},
   {k:'structurerCompteRendu', l:"structurerCompteRendu (dictée)",    p:{texte:''}},
-  {k:'assistantBatiSuivi',    l:"assistantBatiSuivi (assistant IA)", p:{messages:[]}},
+  {k:'assistantBatiSuivi',    l:"Assistant IA", p:{messages:[]}},
   {k:'projectionIA',          l:"projectionIA (rendus)",             p:{}},
   {k:'lireTicket',            l:"lireTicket (tickets de frais)",     p:{image:''}},
   {k:'devisPhoto',            l:"devisPhoto (devis par photo)",      p:{image:''}},

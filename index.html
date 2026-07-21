@@ -3138,6 +3138,102 @@ const FICHE_IA_NOMS = {
 };
 function ficheIaNom(k){ return FICHE_IA_NOMS[k] || k || '—'; }
 
+/* ============ DEPUIS LA FICHE : DEMO ET SUPPRESSION ============
+   Deux gestes du quotidien commercial de Lenny : remplir un espace de
+   demonstration avant un rendez-vous, et faire le menage apres. */
+
+/* Charger une demo chez ce client. On passe par le mode fantome : c'est
+   la seule facon de reutiliser le jeu de demonstration existant (equipe,
+   chantiers, devis, pointages) au lieu de le reecrire cote serveur. */
+function ficheDemo(slug){
+  const f = FICHE || {};
+  const nom = f.nom || slug;
+  const estDemo = /^demo/i.test(slug);
+  const msg = estDemo
+    ? "Charger un jeu de démonstration dans « "+nom+" » ?\n\nSes chantiers et son équipe actuels seront remplacés."
+    : "⚠️ « "+nom+" » n'est PAS un espace de démonstration.\n\n"
+      +"Tu vas ouvrir son espace pour y charger des données fictives, "
+      +"qui remplaceront ses vrais chantiers et sa vraie équipe.\n\nContinuer ?";
+  if(!confirm(msg)) return;
+
+  toast("Ouverture de son espace…");
+  adminApiCall('fantome',{ slug:slug }).then(function(r){
+    FANTOME = (r && r.fantome) || null;
+    if(!FANTOME) throw new Error("Impossible d'ouvrir son espace.");
+    return rechargerEquipe();
+  }).then(function(){
+    SCREEN='team'; TAB='chantiers'; CUR_CHANTIER=null; HUB=null;
+    render(); toTop();
+    /* devLoadDemo se charge lui-meme de demander DEMO par ecrit si ce
+       n'est pas un espace de demonstration. */
+    setTimeout(function(){ devLoadDemo(); }, 350);
+  }).catch(function(e){
+    toast((e && e.message) ? e.message : "Ouverture impossible.");
+  });
+}
+
+/* Supprimer definitivement un client. */
+let FICHE_SUPPR = null;
+
+function ficheSupprimer(slug){
+  const f = FICHE || {};
+  const nom = f.nom || slug;
+  const bloque = Number(f.mf_factures_emises) || 0;
+
+  if(bloque){
+    alert("Suppression impossible.\n\n« "+nom+" » a "+bloque+" facture(s) émise(s) à son nom. "
+      +"Une facture émise doit être conservée : c'est une obligation comptable.\n\n"
+      +"Suspends-le plutôt — il ne pourra plus se connecter, mais tout est gardé.");
+    return;
+  }
+
+  FICHE_SUPPR = slug;
+  openModal('<div class="grabber"></div>'
+    +'<h2 style="margin:0 0 4px;color:var(--danger)">⚠️ Supprimer '+esc(nom)+'</h2>'
+    +'<p class="note" style="margin:0 0 10px;font-size:12px">'
+      +'Tout son espace part définitivement : ses chantiers, ses devis et factures, '
+      +'ses photos, son planning, ses heures pointées, son équipe et les comptes de connexion. '
+      +'<b>Rien ne pourra être récupéré.</b></p>'
+    +'<div class="card" style="box-shadow:none;padding:10px 12px;margin-bottom:12px;border-left:3px solid var(--warn)">'
+      +'<p class="note" style="margin:0;font-size:11.5px">'
+      +'Si tu veux seulement l\'empêcher de se connecter, ferme cette fenêtre et '
+      +'utilise <b>Suspendre ce client</b> : tout est conservé.</p></div>'
+    +'<label style="margin-top:0">Pour confirmer, recopie son adresse : <b style="color:var(--danger)">'+esc(slug)+'</b></label>'
+    +'<input id="fs_mot" placeholder="'+esc(slug)+'" autocapitalize="off" autocorrect="off" oninput="ficheSupprCheck()">'
+    +'<button class="btn danger" id="fs_go" style="width:100%;margin-top:12px;opacity:.45;pointer-events:none" '
+      +'onclick="ficheSupprGo()">Supprimer définitivement</button>'
+    +'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal();FICHE_SUPPR=null">Annuler</button>');
+}
+
+function ficheSupprCheck(){
+  const i=document.getElementById('fs_mot'), b=document.getElementById('fs_go');
+  if(!i||!b) return;
+  const ok = String(i.value||'').trim().toLowerCase() === String(FICHE_SUPPR||'').toLowerCase();
+  b.style.opacity = ok ? '1' : '.45';
+  b.style.pointerEvents = ok ? 'auto' : 'none';
+}
+
+function ficheSupprGo(){
+  const slug = FICHE_SUPPR;
+  if(!slug) return;
+  const i=document.getElementById('fs_mot');
+  if(!i || String(i.value||'').trim().toLowerCase() !== slug.toLowerCase()) return;
+  closeModal(); FICHE_SUPPR=null;
+  toast("Suppression en cours…");
+  adminApiCall('supprimerClient',{ slug:slug, confirmation:slug }).then(function(r){
+    let m = "« "+((r&&r.nom)||slug)+" » a été supprimé.";
+    if(r && (r.fichiers||r.comptes)) m += "\n\n"+(r.comptes||0)+" compte(s) et "+(r.fichiers||0)+" fichier(s) effacés.";
+    if(r && r.avertissement) m += "\n\n⚠️ "+r.avertissement;
+    alert(m);
+    FANTOME=null;
+    try{ fantomeBandeau(); }catch(_){ }
+    SCREEN='parc'; FICHE=null; render(); toTop();
+    try{ parcCharger(); }catch(_){ }
+  }).catch(function(e){
+    alert((e && e.message) ? e.message : "Suppression impossible.");
+  });
+}
+
 function renderFiche(){
   let corps='';
 
@@ -3202,6 +3298,25 @@ function renderFiche(){
       <button class="btn ghost" style="width:100%;margin-bottom:6px" onclick="supportOuvrir('${esc(f.slug)}')">Support — comptes et codes</button>
       <button class="btn ghost" style="width:100%" onclick="parcCopier('${esc(f.slug)}')">Copier son lien</button>
       <button class="btn ghost" style="width:100%;margin-top:6px" onclick="parcBasculer('${esc(f.slug)}',${f.actif?'false':'true'});ficheRetour()">${f.actif?'Suspendre ce client':'Réactiver ce client'}</button>
+    </div>
+
+    <div class="card" style="border-color:var(--warn)">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Démonstration</h2></div>
+      <p class="note" style="margin:0 0 8px;font-size:11.5px">
+        Remplit son espace d'une équipe, de chantiers, de devis et d'heures pointées.
+        ${/^demo/i.test(f.slug)?'Espace de démonstration : chargement direct.'
+          :'<b style="color:var(--warn)">Ce n\'est pas un espace de démo</b> : ses vraies données seraient remplacées.'}</p>
+      <button class="btn ghost" style="width:100%" onclick="ficheDemo('${esc(f.slug)}')">Charger un jeu de démonstration</button>
+    </div>
+
+    <div class="card" style="border-color:var(--danger)">
+      <div class="section-title" style="margin-top:0"><h2 style="font-size:15px;color:var(--danger)">Zone sensible</h2></div>
+      ${Number(f.mf_factures_emises)>0
+        ? `<p class="note" style="margin:0;font-size:11.5px">Ce client a <b>${f.mf_factures_emises} facture(s) émise(s)</b> :
+             il ne peut pas être supprimé, une facture émise doit être conservée. Suspends-le plutôt.</p>`
+        : `<p class="note" style="margin:0 0 8px;font-size:11.5px">Efface tout son espace, sans retour possible.
+             Pour l'empêcher seulement de se connecter, utilise « Suspendre ».</p>
+           <button class="btn danger" style="width:100%" onclick="ficheSupprimer('${esc(f.slug)}')">Supprimer ce client</button>`}
     </div>`;
   }
 
@@ -4921,7 +5036,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v276 · 21/07";
+const APP_VERSION="v277 · 21/07";
 
 function devAllowed(user){
   if(!user) return false;
@@ -5488,13 +5603,29 @@ function demoEnrichir(ids){
    artisan en activite saccagerait son travail. On les reserve donc aux
    entreprises dont l'adresse commence par « demo ». */
 function demoAutorisee(){
-  try{ return !!(FANTOME && /^demo/.test(FANTOME.slug||'')); }catch(_){ return false; }
+  /* Espace de demonstration : chargement direct, sans friction. C'est le
+     geste quotidien avant un rendez-vous prospect. */
+  try{ return !!(FANTOME && /^demo/i.test(FANTOME.slug||'')); }catch(_){ return false; }
+}
+/* Ailleurs, le chargement reste possible mais demande une confirmation
+   ecrite : on ecrase les chantiers et l'equipe d'un vrai client. */
+function demoPossible(){
+  try{ return !!(FANTOME && FANTOME.slug); }catch(_){ return false; }
 }
 function demoRefus(){
   toast("Réservé aux clients de démonstration (adresse commençant par « demo »).");
 }
 function devLoadDemo(){
-  if(!demoAutorisee()) return demoRefus();
+  if(!demoAutorisee()){
+    if(!demoPossible()) return demoRefus();
+    /* Vrai client : on ne charge rien sans confirmation ecrite. */
+    dangerGuard("Charger la démo",
+      "🚨 <b>« "+esc((FANTOME&&(FANTOME.nom||FANTOME.slug))||'')+" » n'est pas un espace de démonstration.</b> "
+      +"Charger la démo <b>remplacera ses chantiers, son équipe et ses véhicules</b> par des données fictives. "
+      +"C'est sans retour.",
+      "DEMO", devLoadDemoGo);
+    return;
+  }
   if(instanceEnProd()){
     dangerGuard("Charger la démo",
       "🚨 <b>Cette instance contient de VRAIES données</b> (documents publiés, heures pointées ou fiche client remplie). Charger la démo <b>écrasera les chantiers et l'équipe de ce client</b>.",
@@ -5504,7 +5635,7 @@ function devLoadDemo(){
   devLoadDemoGo();
 }
 function devLoadDemoGo(){
-  if(!demoAutorisee()) return demoRefus();
+  if(!demoAutorisee() && !demoPossible()) return demoRefus();
   const _sel=Object.keys(DEMO_SEL).filter(k=>DEMO_SEL[k]);
   const _trades=_sel.length?_sel:Object.keys(DEMO_TRADES);
   if((Object.keys(CHANTIERS).length||Object.keys(VEHICULES).length) && !instanceEnProd() && !confirm("Charger la démo ? Les chantiers et véhicules actuels seront remplacés.")) return;
@@ -11532,7 +11663,16 @@ function chantierRgpdCard(id,c){
 let IA_USAGE=null, IA_USAGE_BUSY=false;
 const IA_NOMS={ assistant:"Assistant (chat)", compteRendu:"Compte-rendu vocal", projection:"Projection (rendus)", lireTicket:"Lecture de tickets", devisPhoto:"Devis par photo" };
 function iaPlafond(){ const v=parseFloat(CONFIG_DB.iaPlafond); return (isNaN(v)||v<0)?0:v; }
-function isDevSpace(){ return (typeof SCREEN!=='undefined' && SCREEN==='dev'); }
+function isDevSpace(){
+  /* L'espace editeur ne se limite pas a l'ecran « dev » : la fiche
+     client, le parc, le support en font partie. Sans cela, les gardes
+     de securite refusaient toute action lancee depuis la fiche. */
+  try{
+    if(typeof SCREEN==='undefined') return false;
+    return ['dev','parc','fiche','support','journal','marge','mafactu','prospect','annonce','client']
+             .indexOf(SCREEN) >= 0;
+  }catch(_){ return false; }
+}
 
 /* ============================================================
  * DIAGNOSTIC D'INSTANCE (espace dev)

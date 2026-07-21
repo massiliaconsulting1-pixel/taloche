@@ -514,6 +514,89 @@ body.big-text{zoom:1.18}
 .crop-ring{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 9999px rgba(8,12,20,.55);pointer-events:none}
 .crop-stage.sq{border-radius:28px}
 .crop-stage.sq .crop-ring{border-radius:28px}
+
+/* ============================================================
+   ORDINATEUR ET TABLETTE  (a partir de 1000 px de large)
+   ------------------------------------------------------------
+   Couche de mise en page uniquement : elle deplace et redimensionne,
+   elle ne reecrit rien. En dessous de 900 px, aucune de ces regles
+   ne s'applique et le telephone reste exactement comme avant.
+   Une tablette en portrait (820 px) garde donc l'affichage telephone,
+   ce qui est le bon choix : la colonne y serait trop etroite.
+   ============================================================ */
+@media (min-width:1000px){
+
+  /* --- la navigation passe a gauche, a la verticale --------------
+     En bas, une barre de 5 boutons etires sur 1600 px n'a aucun sens :
+     c'est un geste de pouce, pas de souris. */
+  .nav{
+    top:0; bottom:0; right:auto; left:0;
+    width:96px; height:100vh;
+    flex-direction:column; justify-content:flex-start;
+    gap:6px; padding:18px 10px;
+    border-top:none; border-right:1px solid var(--line);
+    overflow-y:auto; overflow-x:hidden;
+  }
+  .nav button{
+    flex:0 0 auto; min-height:66px; width:100%;
+    border-radius:14px; font-size:10.5px; padding:10px 4px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .nav.compact button{ font-size:10px; padding:9px 4px; }
+  .nav button:hover{ background:var(--card2); color:var(--txt); }
+  .nav button.on{ background:var(--card2); }
+
+  /* --- le contenu ne passe jamais sous la barre ------------------
+     PAS de decalage du corps de page. On a essaye, via
+     body:has(#nav.hidden) pour annuler le decalage quand la barre est
+     masquee : Chromium applique bien la regle au chargement, mais ne
+     recalcule PAS le style du corps quand la classe est ajoutee en
+     JavaScript — ce que l'app fait a chaque changement d'ecran. Les
+     ecrans de connexion se seraient retrouves decales de 96 px.
+
+     A la place : la barre flotte (elle est en position fixe, elle ne
+     pousse rien) et la colonne de lecture est assez etroite pour que
+     la marge naturelle depasse toujours la largeur de la barre.
+     A 1000 px, la marge fait (1000-700)/2 = 150 px pour une barre de
+     96 px. Aucun recouvrement possible, et rien a annuler quand la
+     barre disparait. */
+  .wrap{
+    max-width:700px;              /* au-dela, les lignes deviennent penibles a lire */
+    padding-bottom:48px;           /* plus de barre en bas a eviter */
+  }
+
+  /* --- les fenetres surgissantes se centrent ---------------------
+     Une feuille qui remonte du bas est un geste de telephone. A la
+     souris, on attend une fenetre au milieu. */
+  .modal{ align-items:center; padding:24px; }
+  .modal-card{
+    border-radius:22px;
+    max-height:86vh;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,.6);
+  }
+  /* la poignee de glissement ne sert qu'au doigt */
+  .modal-card .grabber, .modal-card .sheet-grip{ display:none; }
+
+  /* --- le bouton rond flottant -----------------------------------
+     Il se placait au-dessus de la barre du bas, qui n'est plus la. */
+  .fab{ bottom:32px; right:32px; }
+
+  /* --- de quoi survoler, ce qui n'existe pas au doigt ------------ */
+  .btn{ transition:filter .15s ease, transform .1s ease; }
+  .btn:hover{ filter:brightness(1.12); }
+  .btn:active{ transform:translateY(1px); }
+  .linkbtn:hover{ text-decoration:underline; }
+  .row[onclick]:hover, .task-row[onclick]:hover{ background:var(--card2); }
+
+  /* --- confort de lecture ---------------------------------------- */
+  .center-wrap{ padding-top:40px; padding-bottom:40px; }
+}
+
+/* Ecrans tres larges : on ne fait qu'aerer, la colonne de lecture
+   ne s'elargit plus. Une ligne de 1200 px se lit mal. */
+@media (min-width:1500px){
+  .wrap{ max-width:780px; }
+}
 </style>
 </head>
 <body>
@@ -2077,6 +2160,7 @@ function render(){
   try{ bandeauServeur(); }catch(_){ }
   if(useFB && !AUTH_READY){ navEl.classList.add('hidden'); app.innerHTML=splash(); return; }
   if(RECUP && AUTH_USER){ navEl.classList.add('hidden'); return renderNouveauMdp(); }
+  if(parcoursActif()){ navEl.classList.add('hidden'); return renderParcours(); }
   if(SCREEN==='entry'){ navEl.classList.add('hidden'); return renderEntry(); }
   if(SCREEN==='dev'){ navEl.classList.add('hidden'); return renderDev(); }
   if(SCREEN==='parc'){ navEl.classList.add('hidden'); return renderParc(); }
@@ -2085,6 +2169,7 @@ function render(){
   if(SCREEN==='support'){ navEl.classList.add('hidden'); return renderSupport(); }
   if(SCREEN==='journal'){ navEl.classList.add('hidden'); return renderJournal(); }
   if(SCREEN==='mafactu'){ navEl.classList.add('hidden'); return renderMaFacturation(); }
+  if(SCREEN==='prospect'){ navEl.classList.add('hidden'); return renderProspection(); }
   if(SCREEN==='annonce'){ navEl.classList.add('hidden'); return renderAnnonce(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
@@ -3110,6 +3195,7 @@ function renderParc(){
       <button class="btn ghost" style="flex:1" onclick="journalOuvrir()">Journal</button>
     </div>
     <button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="mfOuvrir()">Ma facturation</button>
+    <button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="proOuvrir()">Prospection</button>
     <button class="btn ghost" style="width:100%;margin-bottom:12px" onclick="annonceOuvrir()">Annonce à tout le parc</button>
     ${corps}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
@@ -3130,8 +3216,16 @@ function renderParc(){
    serveur « facturation », qui vérifie que je suis bien l'éditeur. */
 let MF=null, MF_CAT=[], MF_ETAT='vide', MF_ERR='', MF_PREST=null;
 
-function mfOuvrir(){ SCREEN='mafactu'; MF=null; MF_CAT=[]; MF_PREST=null; MF_ETAT='chargement'; MF_ERR=''; render(); toTop(); mfCharger(); }
-function mfRetour(){ SCREEN='parc'; MF_PREST=null; render(); toTop(); }
+/* Quelle page de « Ma facturation » je regarde :
+   'liste' (l'accueil), 'reglages', 'edit' (un brouillon), 'fiche'. */
+let MF_VUE='liste';
+let MF_LISTE=[], MF_BILAN=null, MF_LETAT='vide', MF_LERR='';
+let MF_CLIENTS=[], MF_DOC=null, MF_DOC_CLIENT=null, MF_LIGNES=[], MF_DETAT='vide', MF_DERR='';
+
+function mfOuvrir(){ SCREEN='mafactu'; MF_VUE='liste'; MF_PREST=null; MF_DOC=null; render(); toTop(); mfChargerListe(); }
+function mfRetour(){ SCREEN='parc'; MF_PREST=null; MF_DOC=null; render(); toTop(); }
+function mfVueListe(){ MF_VUE='liste'; MF_PREST=null; MF_DOC=null; render(); toTop(); mfChargerListe(); }
+function mfVueReglages(){ MF_VUE='reglages'; MF_PREST=null; MF=null; MF_CAT=[]; MF_ETAT='chargement'; MF_ERR=''; render(); toTop(); mfCharger(); }
 
 function mfCharger(){
   MF_ETAT='chargement'; MF_ERR='';
@@ -3267,7 +3361,7 @@ function mfPrestLigne(p){
   '</div>';
 }
 
-function renderMaFacturation(){
+function renderMfReglages(){
   /* --- fiche d'une prestation --- */
   if(MF_PREST){
     const p = MF_PREST;
@@ -3304,8 +3398,8 @@ function renderMaFacturation(){
         '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="mfCharger()">Réessayer</button>'
       : '<p class="note">Lecture de tes réglages…</p>';
     app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:520px">'+
-      '<button class="backbtn" style="align-self:flex-start" onclick="mfRetour()"><span class="ar">←</span> Parc client</button>'+
-      '<div style="text-align:center;margin:8px 0 16px"><h1 style="font-size:22px">Ma facturation</h1></div>'+
+      '<button class="backbtn" style="align-self:flex-start" onclick="mfVueListe()"><span class="ar">←</span> Ma facturation</button>'+
+      '<div style="text-align:center;margin:8px 0 16px"><h1 style="font-size:22px">Réglages</h1></div>'+
       '<div class="card">'+msg+'</div></div>';
     return;
   }
@@ -3315,10 +3409,10 @@ function renderMaFacturation(){
   const franchise = !p.tva_assujetti;
 
   app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
-    '<button class="backbtn" style="align-self:flex-start" onclick="mfRetour()"><span class="ar">←</span> Parc client</button>'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="mfVueListe()"><span class="ar">←</span> Ma facturation</button>'+
     '<div style="text-align:center;margin:8px 0 16px">'+
-      '<h1 style="font-size:22px">Ma facturation</h1>'+
-      '<p class="note" style="margin-top:6px">Mes réglages et mon catalogue · Massilia Consulting</p>'+
+      '<h1 style="font-size:22px">Réglages de facturation</h1>'+
+      '<p class="note" style="margin-top:6px">Mon entreprise, ma TVA, ma numérotation, mon catalogue</p>'+
     '</div>'+
 
     '<div class="card">'+
@@ -3387,9 +3481,1374 @@ function renderMaFacturation(){
   '</div>';
 }
 
+/* ====================== MA FACTURATION — LOT B ======================
+   Creer une facture, l'emettre, l'encaisser.
+
+   REGLE : aucun calcul d'argent ici. L'application envoie les lignes
+   au serveur, le serveur calcule et renvoie les totaux. Si le total
+   affiche a l'ecran differait de celui de la base, c'est toujours la
+   base qui a raison — l'ecran n'est qu'une vitrine.
+
+   REGLE : une facture emise est definitive. Pas de modification, pas
+   de suppression. Pour annuler, on emet un avoir. */
+
+function mfDate(d){
+  if(!d) return '—';
+  const p = String(d).slice(0,10).split('-');
+  return p.length===3 ? (p[2]+'/'+p[1]+'/'+p[0]) : String(d);
+}
+function mfStatut(f){
+  if(f.type==='avoir')        return { t:'Avoir',     c:'var(--mut)' };
+  if(f.statut==='brouillon')  return { t:'Brouillon', c:'var(--mut)' };
+  if(f.statut==='payee')      return { t:'Payée',     c:'var(--ok, #1a9e5c)' };
+  if(f.statut==='annulee')    return { t:'Annulée',   c:'var(--mut)' };
+  if(f.en_retard)             return { t:'En retard', c:'var(--dang)' };
+  return { t:'À payer', c:'var(--acc)' };
+}
+
+/* ---------------- la liste ---------------- */
+function mfChargerListe(){
+  MF_LETAT='chargement'; MF_LERR='';
+  if(SCREEN==='mafactu' && MF_VUE==='liste') renderMaFacturation();
+  facturationApiCall('liste',{}).then(function(r){
+    MF_LISTE = (r && r.factures) || [];
+    MF_BILAN = (r && r.bilan) || null;
+    MF_LETAT='pret';
+    if(SCREEN==='mafactu' && MF_VUE==='liste') renderMaFacturation();
+  }).catch(function(e){
+    MF_LERR = (e && e.message) ? e.message : "Service indisponible.";
+    MF_LETAT='erreur';
+    if(SCREEN==='mafactu' && MF_VUE==='liste') renderMaFacturation();
+  });
+}
+
+function mfLigneListe(f){
+  const st = mfStatut(f);
+  const num = f.numero || 'brouillon';
+  return '<div class="row" style="cursor:pointer" onclick="mfOuvrirDoc(\'' + esc(String(f.id)) + '\')">'+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="font-weight:600">'+esc(f.client_nom||'')+'</div>'+
+      '<div class="note" style="font-size:11.5px">'+esc(num)+' · '+mfDate(f.date_emission)+'</div>'+
+    '</div>'+
+    '<div style="text-align:right;white-space:nowrap">'+
+      '<div style="font-weight:700">'+mfEur(f.total_ttc)+'</div>'+
+      '<div style="font-size:11px;color:'+st.c+'">'+st.t+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function renderMfListe(){
+  let corps='';
+  if(MF_LETAT==='chargement'){
+    corps = '<div class="card"><p class="note">Lecture de tes factures…</p></div>';
+  } else if(MF_LETAT==='erreur'){
+    corps = '<div class="card"><p class="note" style="color:var(--dang)">'+esc(MF_LERR)+'</p>'+
+            '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="mfChargerListe()">Réessayer</button></div>';
+  } else {
+    const b = MF_BILAN || {encaisse:0, attente:0, retard:0, nb_retard:0};
+    corps =
+      '<div class="card">'+
+        '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Où j\'en suis</h2></div>'+
+        '<div class="row"><div style="flex:1">Encaissé</div><div style="font-weight:700">'+mfEur(b.encaisse)+'</div></div>'+
+        '<div class="row"><div style="flex:1">En attente de paiement</div><div style="font-weight:700">'+mfEur(b.attente)+'</div></div>'+
+        (b.nb_retard>0
+          ? '<div class="row"><div style="flex:1;color:var(--dang)">En retard ('+b.nb_retard+')</div><div style="font-weight:700;color:var(--dang)">'+mfEur(b.retard)+'</div></div>'
+          : '<div class="row"><div style="flex:1" class="note">Aucun retard de paiement.</div></div>')+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Mes factures</h2></div>'+
+        (MF_LISTE.length ? MF_LISTE.map(mfLigneListe).join('') : '<p class="note">Aucune facture pour l\'instant.</p>')+
+      '</div>';
+  }
+
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="mfRetour()"><span class="ar">←</span> Parc client</button>'+
+    '<div style="text-align:center;margin:8px 0 16px">'+
+      '<h1 style="font-size:22px">Ma facturation</h1>'+
+      '<p class="note" style="margin-top:6px">Ce que mes artisans me doivent · Massilia Consulting</p>'+
+    '</div>'+
+    '<button class="btn primary" style="width:100%;margin-bottom:8px" onclick="mfNouvelle()">+ Nouvelle facture</button>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+      '<button class="btn ghost" style="flex:1" onclick="mfVueReglages()">Réglages</button>'+
+      '<button class="btn ghost" style="flex:1" onclick="mfChargerListe()">Rafraîchir</button>'+
+    '</div>'+
+    corps+
+    '<p class="note" style="text-align:center;margin-top:14px;font-size:11px">Chaque émission est journalisée côté serveur.</p>'+
+  '</div>';
+}
+
+/* ---------------- creer / modifier un brouillon ---------------- */
+function mfNouvelle(){
+  MF_DOC=null; MF_DOC_CLIENT=null; MF_LIGNES=[]; MF_VUE='edit'; MF_DETAT='chargement'; MF_DERR='';
+  render(); toTop();
+  Promise.all([ facturationApiCall('clients',{}), facturationApiCall('reglages',{}) ])
+    .then(function(r){
+      MF_CLIENTS = (r[0] && r[0].clients) || [];
+      MF = (r[1] && r[1].parametres) || null;
+      MF_CAT = (r[1] && r[1].catalogue) || [];
+      MF_DOC = { id:null, statut:'brouillon', entreprise_id:'', objet:'', note_interne:'' };
+      MF_LIGNES = [];
+      MF_DETAT='pret'; render(); toTop();
+    }).catch(function(e){
+      MF_DERR=(e&&e.message)||"Service indisponible."; MF_DETAT='erreur'; render();
+    });
+}
+
+function mfOuvrirDoc(id){
+  MF_VUE='fiche'; MF_DOC=null; MF_DETAT='chargement'; MF_DERR='';
+  render(); toTop();
+  facturationApiCall('lire',{ id:id }).then(function(r){
+    MF_DOC = (r && r.facture) || null;
+    MF_DOC_CLIENT = (r && r.client) || null;
+    MF_LIGNES = (MF_DOC && Array.isArray(MF_DOC.lignes)) ? MF_DOC.lignes.slice() : [];
+    MF_DETAT='pret';
+    // un brouillon s'ouvre directement en modification
+    if(MF_DOC && MF_DOC.statut==='brouillon'){
+      MF_VUE='edit';
+      if(!MF_CLIENTS.length || !MF){
+        Promise.all([ facturationApiCall('clients',{}), facturationApiCall('reglages',{}) ]).then(function(r2){
+          MF_CLIENTS=(r2[0]&&r2[0].clients)||[]; MF=(r2[1]&&r2[1].parametres)||null;
+          MF_CAT=(r2[1]&&r2[1].catalogue)||[]; render(); toTop();
+        });
+        return;
+      }
+    }
+    render(); toTop();
+  }).catch(function(e){
+    MF_DERR=(e&&e.message)||"Service indisponible."; MF_DETAT='erreur'; render();
+  });
+}
+
+/* --- les lignes, cote ecran. Le serveur recalcule tout a l'envoi. --- */
+function mfLigneAjout(){ mfLignesLire(); MF_LIGNES.push({ designation:'', quantite:1, unite:'', prix_ht:0, remise:0, remise_type:'eur' }); render(); }
+function mfLigneTitre(){ mfLignesLire(); MF_LIGNES.push({ titre:true, designation:'' }); render(); }
+function mfLigneSuppr(i){ mfLignesLire(); MF_LIGNES.splice(i,1); render(); }
+function mfLigneMonter(i){ if(i<1) return; mfLignesLire(); const x=MF_LIGNES[i]; MF_LIGNES[i]=MF_LIGNES[i-1]; MF_LIGNES[i-1]=x; render(); }
+
+function mfLigneDepuisCat(){
+  const sel = document.getElementById('mf_cat_choix');
+  if(!sel || !sel.value) return;
+  const p = MF_CAT.filter(function(x){ return String(x.id)===sel.value; })[0];
+  if(!p) return;
+  mfLignesLire();
+  MF_LIGNES.push({ designation:p.libelle, detail:p.detail||'', quantite:1,
+                   unite:p.unite||'', prix_ht:Number(p.prix_ht)||0, remise:0, remise_type:'eur' });
+  render();
+}
+
+/* Relit les champs a l'ecran avant tout rendu : sans ca, ce que je viens
+   de taper serait efface au prochain affichage. */
+function mfLignesLire(){
+  for(let i=0;i<MF_LIGNES.length;i++){
+    const l = MF_LIGNES[i];
+    const d = document.getElementById('ml_d'+i);
+    if(d) l.designation = d.value;
+    if(l.titre) continue;
+    const q = document.getElementById('ml_q'+i);
+    const p = document.getElementById('ml_p'+i);
+    const u = document.getElementById('ml_u'+i);
+    const r = document.getElementById('ml_r'+i);
+    const t = document.getElementById('ml_t'+i);
+    if(q) l.quantite = Number(String(q.value).replace(',','.'))||0;
+    if(p) l.prix_ht  = Number(String(p.value).replace(',','.'))||0;
+    if(u) l.unite    = u.value;
+    if(r) l.remise   = Number(String(r.value).replace(',','.'))||0;
+    if(t) l.remise_type = t.value;
+  }
+  if(MF_DOC){
+    const o = document.getElementById('mf_objet');
+    const n = document.getElementById('mf_note');
+    const c = document.getElementById('mf_client');
+    if(o) MF_DOC.objet = o.value;
+    if(n) MF_DOC.note_interne = n.value;
+    if(c) MF_DOC.entreprise_id = c.value;
+  }
+}
+
+/* Le total affiche pendant la saisie. C'est un APERCU : le vrai total
+   est celui que le serveur calcule a l'enregistrement. */
+function mfApercuTotal(){
+  let ht=0;
+  for(const l of MF_LIGNES){
+    if(l.titre) continue;
+    let x = (Number(l.quantite)||0) * (Number(l.prix_ht)||0);
+    const r = Number(l.remise)||0;
+    if(r>0) x = (l.remise_type==='pct') ? x*(1-Math.min(r,100)/100) : x-r;
+    if(x<0) x=0;
+    ht += Math.round(x*100)/100;
+  }
+  ht = Math.round(ht*100)/100;
+  const taux = (MF && MF.tva_assujetti) ? (Number(MF.tva_taux)||0) : 0;
+  const tva = Math.round(ht*taux)/100;
+  return { ht:ht, taux:taux, tva:tva, ttc:Math.round((ht+tva)*100)/100 };
+}
+
+function mfSauver(apresQuoi){
+  mfLignesLire();
+  if(!MF_DOC){ return; }
+  if(!MF_DOC.entreprise_id){ toast("Choisis un client."); return; }
+  const charge = {
+    entreprise_id: MF_DOC.entreprise_id,
+    objet: MF_DOC.objet || '',
+    note_interne: MF_DOC.note_interne || '',
+    lignes: MF_LIGNES
+  };
+  toast("Enregistrement…");
+  const appel = MF_DOC.id
+    ? facturationApiCall('majBrouillon', Object.assign({id:MF_DOC.id}, charge))
+    : facturationApiCall('creer', charge);
+  return appel.then(function(r){
+    if(r && r.id) MF_DOC.id = r.id;
+    toast("Brouillon enregistré ✅");
+    if(typeof apresQuoi==='function') apresQuoi();
+    else mfOuvrirDoc(MF_DOC.id);
+  }).catch(function(e){ toast((e&&e.message)||"Enregistrement refusé"); });
+}
+
+function mfSupprBrouillon(){
+  if(!MF_DOC || !MF_DOC.id) { mfVueListe(); return; }
+  if(!confirm("Supprimer ce brouillon ? Il n'a pas de numéro, rien ne sera cassé.")) return;
+  facturationApiCall('supprimerBrouillon',{ id:MF_DOC.id })
+    .then(function(){ toast("Brouillon supprimé ✅"); mfVueListe(); })
+    .catch(function(e){ toast((e&&e.message)||"Suppression refusée"); });
+}
+
+/* ---------------- l'emission : le moment sans retour ---------------- */
+function mfEmettre(){
+  if(!MF_DOC) return;
+  const t = mfApercuTotal();
+  const nom = (MF_CLIENTS.filter(function(c){ return c.id===MF_DOC.entreprise_id; })[0]||{}).nom
+              || (MF_DOC_CLIENT&&MF_DOC_CLIENT.nom) || 'ce client';
+  if(!confirm("Émettre cette facture de "+mfEur(t.ttc)+" à "+nom+" ?\n\n"+
+              "Elle recevra son numéro définitif et ne pourra plus être modifiée ni supprimée. "+
+              "Pour l'annuler ensuite, il faudra émettre un avoir.")) return;
+
+  const lancer = function(){
+    facturationApiCall('emettre',{ id:MF_DOC.id }).then(function(r){
+      toast("Facture "+(r&&r.numero||'')+" émise ✅");
+      mfOuvrirDoc(MF_DOC.id);
+    }).catch(function(e){ toast((e&&e.message)||"Émission refusée"); });
+  };
+  // on enregistre d'abord, pour n'emettre que ce qui est bien en base
+  if(MF_DOC.statut==='brouillon') mfSauver(lancer); else lancer();
+}
+
+function mfPayer(){
+  if(!MF_DOC) return;
+  const d = document.getElementById('mf_paie_date');
+  const m = document.getElementById('mf_paie_moyen');
+  facturationApiCall('payer',{ id:MF_DOC.id, date:(d?d.value:''), moyen:(m?m.value:'virement') })
+    .then(function(){ toast("Paiement enregistré ✅"); mfOuvrirDoc(MF_DOC.id); })
+    .catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+function mfDepayer(){
+  if(!MF_DOC) return;
+  if(!confirm("Annuler l'enregistrement du paiement ?")) return;
+  facturationApiCall('payer',{ id:MF_DOC.id, annuler:true })
+    .then(function(){ toast("Paiement annulé"); mfOuvrirDoc(MF_DOC.id); })
+    .catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+
+function mfAvoir(){
+  if(!MF_DOC) return;
+  if(!confirm("Émettre un avoir sur la facture "+(MF_DOC.numero||'')+" ?\n\n"+
+              "L'avoir portera son propre numéro et annulera cette facture. "+
+              "C'est la seule façon correcte d'annuler une facture émise.")) return;
+  const motif = prompt("Motif de l'avoir (facultatif) :") || '';
+  facturationApiCall('avoir',{ id:MF_DOC.id, motif:motif })
+    .then(function(r){ toast("Avoir "+(r&&r.numero||'')+" émis ✅"); mfOuvrirDoc(r.id); })
+    .catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+
+/* ---------------- le document imprimable ----------------
+   Meme principe que les autres documents de l'app : une page HTML
+   dans un nouvel onglet, avec le bouton « Imprimer / Enregistrer en
+   PDF » du navigateur. Le document est reconstruit a partir des
+   donnees FIGEES a l'emission : il sera identique dans dix ans. */
+function mfDocument(){
+  if(!MF_DOC || MF_DOC.statut==='brouillon'){ toast("Émets d'abord la facture."); return; }
+  mfOuvrirDocument(MF_DOC);
+}
+
+/* Le document imprimable. Une seule fonction, utilisee par l'editeur
+   (moi) ET par l'artisan qui recoit la facture : le document est donc
+   rigoureusement identique des deux cotes. */
+function mfOuvrirDocument(f){
+  if(!f) return;
+  const em = f.emetteur || {}, de = f.destinataire || {};
+  const avoir = f.type==='avoir';
+  const win = window.open('','_blank');
+  if(!win){ toast("Autorise les pop-ups pour ouvrir le document"); return; }
+
+  const lignes = (Array.isArray(f.lignes)?f.lignes:[]).map(function(l){
+    if(l.titre) return '<tr><td colspan="4" class="ti">'+esc(l.designation||'')+'</td></tr>';
+    const rem = (Number(l.remise)||0) > 0
+      ? '<div class="pt">remise '+(l.remise_type==='pct' ? (Number(l.remise)+' %') : mfEur(l.remise))+'</div>' : '';
+    return '<tr>'+
+      '<td><b>'+esc(l.designation||'')+'</b>'+(l.detail?'<div class="pt">'+esc(l.detail)+'</div>':'')+rem+'</td>'+
+      '<td class="r">'+(Number(l.quantite)||0)+(l.unite?' '+esc(l.unite):'')+'</td>'+
+      '<td class="r">'+mfEur(l.prix_ht)+'</td>'+
+      '<td class="r"><b>'+mfEur(l.total_ht)+'</b></td>'+
+    '</tr>';
+  }).join('');
+
+  const bloc = function(titre, l){ return '<div class="bl"><div class="bt">'+titre+'</div>'+l.filter(Boolean).map(function(x){ return '<div>'+esc(x)+'</div>'; }).join('')+'</div>'; };
+
+  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+
+    esc((avoir?'Avoir ':'Facture ')+(f.numero||''))+'</title><style>'+
+    'body{font-family:Arial,Helvetica,sans-serif;padding:28px;color:#111;max-width:820px;margin:0 auto}'+
+    'h1{font-size:26px;margin:0 0 2px;color:#f2671f}'+
+    '.sub{color:#666;font-size:13px;margin-bottom:22px}'+
+    '.cols{display:flex;gap:24px;margin-bottom:22px}.bl{flex:1;font-size:12.5px;line-height:1.55}'+
+    '.bt{font-weight:bold;font-size:11px;text-transform:uppercase;color:#888;margin-bottom:5px;letter-spacing:.5px}'+
+    'table{width:100%;border-collapse:collapse;margin-top:8px}'+
+    'th,td{border-bottom:1px solid #ddd;padding:9px 7px;font-size:12.5px;text-align:left;vertical-align:top}'+
+    'th{background:#1a2740;color:#fff;border:none;font-size:11px;text-transform:uppercase;letter-spacing:.5px}'+
+    'td.r,th.r{text-align:right;white-space:nowrap}.pt{color:#777;font-size:11px;margin-top:2px}'+
+    'td.ti{background:#f4f6fa;font-weight:bold;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}'+
+    '.tot{margin-top:16px;margin-left:auto;width:290px;font-size:13px}'+
+    '.tot div{display:flex;justify-content:space-between;padding:6px 0}'+
+    '.tot .g{border-top:2px solid #1a2740;margin-top:5px;padding-top:9px;font-size:16px;font-weight:bold}'+
+    '.men{margin-top:26px;font-size:11.5px;color:#555;line-height:1.6;border-top:1px solid #eee;padding-top:14px}'+
+    '.toolbar{position:sticky;top:0;display:flex;gap:10px;justify-content:flex-end;background:#fff;padding:10px 0 14px;border-bottom:1px solid #eee;margin-bottom:14px}'+
+    '.toolbar button{font-family:Arial;font-size:14px;font-weight:bold;padding:10px 16px;border-radius:10px;border:none;cursor:pointer}'+
+    '.tb-close{background:#eef0f4;color:#1a2740}.tb-print{background:#f2671f;color:#fff}'+
+    '@media print{.toolbar{display:none}body{padding:0}}'+
+    '</style></head><body>'+
+    '<div class="toolbar"><button class="tb-close" onclick="window.close()">Fermer</button>'+
+    '<button class="tb-print" onclick="window.print()">Imprimer / Enregistrer en PDF</button></div>'+
+    '<h1>'+(avoir?'AVOIR':'FACTURE')+'</h1>'+
+    '<div class="sub">'+esc(f.numero||'')+' · émise le '+mfDate(f.date_emission)+
+      (avoir?'':' · échéance le '+mfDate(f.date_echeance))+'</div>'+
+    '<div class="cols">'+
+      bloc('Émetteur', [em.raison_sociale, em.forme_juridique, em.adresse,
+        [em.code_postal, em.ville].filter(Boolean).join(' '),
+        em.siren?('SIREN '+em.siren):'', em.ape?('APE '+em.ape):'', em.email, em.telephone])+
+      bloc('Facturé à', [de.nom, de.adresse, de.siret?('SIRET '+de.siret):'', de.email, de.telephone])+
+    '</div>'+
+    (f.objet?'<div style="font-size:13px;margin-bottom:6px"><b>Objet :</b> '+esc(f.objet)+'</div>':'')+
+    '<table><thead><tr><th>Désignation</th><th class="r">Qté</th><th class="r">P.U. HT</th><th class="r">Total HT</th></tr></thead>'+
+    '<tbody>'+lignes+'</tbody></table>'+
+    '<div class="tot">'+
+      '<div><span>Total HT</span><span>'+mfEur(f.total_ht)+'</span></div>'+
+      (Number(f.tva_taux)>0
+        ? '<div><span>TVA '+Number(f.tva_taux)+' %</span><span>'+mfEur(f.total_tva)+'</span></div>'
+        : '')+
+      '<div class="g"><span>Total '+(Number(f.tva_taux)>0?'TTC':'')+'</span><span>'+mfEur(f.total_ttc)+'</span></div>'+
+    '</div>'+
+    '<div class="men">'+
+      (f.mention_tva?'<div>'+esc(f.mention_tva)+'</div>':'')+
+      (f.date_paiement
+        ? '<div><b>Facture acquittée le '+mfDate(f.date_paiement)+'.</b></div>'
+        : (avoir ? '' : '<div>Paiement à réception, au plus tard le '+mfDate(f.date_echeance)+'.</div>'))+
+      (em.iban && !f.date_paiement && !avoir ? '<div>Par virement — IBAN '+esc(em.iban)+(em.bic?' · BIC '+esc(em.bic):'')+'</div>' : '')+
+      (em.penalites && !avoir ? '<div>'+esc(em.penalites)+'</div>' : '')+
+      (em.pied_page?'<div style="margin-top:8px">'+esc(em.pied_page)+'</div>':'')+
+    '</div></body></html>');
+  win.document.close();
+}
+
+/* ---------------- l'ecran d'edition d'un brouillon ---------------- */
+function renderMfEdit(){
+  if(MF_DETAT==='chargement' || !MF_DOC){
+    app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+      '<button class="backbtn" style="align-self:flex-start" onclick="mfVueListe()"><span class="ar">←</span> Ma facturation</button>'+
+      '<div class="card"><p class="note">'+(MF_DETAT==='erreur'?esc(MF_DERR):'Préparation…')+'</p></div></div>';
+    return;
+  }
+  const t = mfApercuTotal();
+
+  const lignes = MF_LIGNES.map(function(l,i){
+    if(l.titre){
+      return '<div class="card" style="padding:10px;margin-bottom:8px;background:var(--bg2, rgba(127,127,127,.07))">'+
+        '<div style="display:flex;gap:6px;align-items:center">'+
+          '<input id="ml_d'+i+'" value="'+esc(l.designation||'')+'" placeholder="Titre de section" style="flex:1;font-weight:600">'+
+          (i>0?'<button class="btn ghost mini" onclick="mfLigneMonter('+i+')">↑</button>':'')+
+          '<button class="btn ghost mini" onclick="mfLigneSuppr('+i+')">✕</button>'+
+        '</div></div>';
+    }
+    return '<div class="card" style="padding:10px;margin-bottom:8px">'+
+      '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'+
+        '<input id="ml_d'+i+'" value="'+esc(l.designation||'')+'" placeholder="Désignation" style="flex:1">'+
+        (i>0?'<button class="btn ghost mini" onclick="mfLigneMonter('+i+')">↑</button>':'')+
+        '<button class="btn ghost mini" onclick="mfLigneSuppr('+i+')">✕</button>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px">'+
+        '<div style="flex:1"><label style="font-size:11px">Qté</label><input id="ml_q'+i+'" inputmode="decimal" value="'+esc(String(l.quantite!=null?l.quantite:1))+'"></div>'+
+        '<div style="flex:1"><label style="font-size:11px">Unité</label><input id="ml_u'+i+'" value="'+esc(l.unite||'')+'"></div>'+
+        '<div style="flex:1.3"><label style="font-size:11px">Prix HT</label><input id="ml_p'+i+'" inputmode="decimal" value="'+esc(String(l.prix_ht||0))+'"></div>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px;margin-top:6px">'+
+        '<div style="flex:1"><label style="font-size:11px">Remise</label><input id="ml_r'+i+'" inputmode="decimal" value="'+esc(String(l.remise||0))+'"></div>'+
+        '<div style="flex:1"><label style="font-size:11px">Type</label><select id="ml_t'+i+'">'+
+          '<option value="eur"'+((l.remise_type||'eur')==='eur'?' selected':'')+'>€</option>'+
+          '<option value="pct"'+(l.remise_type==='pct'?' selected':'')+'>%</option>'+
+        '</select></div>'+
+      '</div></div>';
+  }).join('');
+
+  const catalogue = MF_CAT.filter(function(p){ return p.actif!==false; });
+
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="mfVueListe()"><span class="ar">←</span> Ma facturation</button>'+
+    '<div style="text-align:center;margin:8px 0 16px">'+
+      '<h1 style="font-size:22px">'+(MF_DOC.id?'Brouillon':'Nouvelle facture')+'</h1>'+
+      '<p class="note" style="margin-top:6px">Rien n\'est définitif tant que tu n\'as pas émis.</p>'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<label>Client</label><select id="mf_client">'+
+        '<option value="">— choisis un client —</option>'+
+        MF_CLIENTS.map(function(c){
+          return '<option value="'+esc(c.id)+'"'+(MF_DOC.entreprise_id===c.id?' selected':'')+'>'+
+                 esc(c.nom)+' ('+esc(c.formule||'')+')'+(c.actif?'':' · suspendu')+'</option>';
+        }).join('')+
+      '</select>'+
+      '<label>Objet (facultatif)</label><input id="mf_objet" value="'+esc(MF_DOC.objet||'')+'" placeholder="Mise en service et abonnement">'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Les lignes</h2></div>'+
+      (catalogue.length
+        ? '<div style="display:flex;gap:6px;margin-bottom:10px">'+
+            '<select id="mf_cat_choix" style="flex:1"><option value="">— piocher dans mon catalogue —</option>'+
+            catalogue.map(function(p){ return '<option value="'+esc(p.id)+'">'+esc(p.libelle)+' · '+mfEur(p.prix_ht)+'</option>'; }).join('')+
+            '</select><button class="btn ghost" onclick="mfLigneDepuisCat()">Ajouter</button></div>'
+        : '')+
+      (lignes || '<p class="note">Aucune ligne pour l\'instant.</p>')+
+      '<div style="display:flex;gap:6px;margin-top:8px">'+
+        '<button class="btn ghost" style="flex:1" onclick="mfLigneAjout()">+ Ligne libre</button>'+
+        '<button class="btn ghost" style="flex:1" onclick="mfLigneTitre()">+ Titre</button>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="row"><div style="flex:1">Total HT</div><div style="font-weight:700">'+mfEur(t.ht)+'</div></div>'+
+      (t.taux>0 ? '<div class="row"><div style="flex:1">TVA '+t.taux+' %</div><div style="font-weight:700">'+mfEur(t.tva)+'</div></div>' : '')+
+      '<div class="row"><div style="flex:1;font-weight:700">Total '+(t.taux>0?'TTC':'')+'</div><div style="font-weight:700;font-size:17px">'+mfEur(t.ttc)+'</div></div>'+
+      (t.taux>0 ? '' : '<p class="note" style="font-size:11.5px;margin-top:6px">'+esc((MF&&MF.mention_tva)||'')+'</p>')+
+      '<p class="note" style="font-size:11px;margin-top:6px">Aperçu. Le total définitif est recalculé par le serveur à l\'enregistrement.</p>'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<label>Note interne (jamais visible par le client)</label>'+
+      '<textarea id="mf_note" rows="2">'+esc(MF_DOC.note_interne||'')+'</textarea>'+
+    '</div>'+
+
+    '<button class="btn ghost" style="width:100%" onclick="mfSauver()">Enregistrer le brouillon</button>'+
+    '<button class="btn primary" style="width:100%;margin-top:8px" onclick="mfEmettre()">Émettre la facture</button>'+
+    (MF_DOC.id?'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="mfSupprBrouillon()">Supprimer ce brouillon</button>':'')+
+    '<p class="note" style="text-align:center;margin-top:12px;font-size:11px">Une fois émise, la facture reçoit son numéro et ne peut plus être modifiée.</p>'+
+  '</div>';
+}
+
+/* ---------------- la fiche d'une facture emise ---------------- */
+function renderMfFiche(){
+  if(MF_DETAT==='chargement' || !MF_DOC){
+    app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+      '<button class="backbtn" style="align-self:flex-start" onclick="mfVueListe()"><span class="ar">←</span> Ma facturation</button>'+
+      '<div class="card"><p class="note">'+(MF_DETAT==='erreur'?esc(MF_DERR):'Lecture…')+'</p></div></div>';
+    return;
+  }
+  const f = MF_DOC;
+  const aujourdhui = new Date().toISOString().slice(0,10);
+  const enRetard = f.statut==='emise' && f.date_echeance && f.date_echeance < aujourdhui;
+  const st = mfStatut(Object.assign({}, f, {en_retard:enRetard}));
+  const avoir = f.type==='avoir';
+
+  const lignes = (Array.isArray(f.lignes)?f.lignes:[]).map(function(l){
+    if(l.titre) return '<div class="row"><div style="flex:1;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px">'+esc(l.designation||'')+'</div></div>';
+    return '<div class="row"><div style="flex:1;min-width:0">'+
+      '<div>'+esc(l.designation||'')+'</div>'+
+      '<div class="note" style="font-size:11px">'+(Number(l.quantite)||0)+(l.unite?' '+esc(l.unite):'')+' × '+mfEur(l.prix_ht)+
+      ((Number(l.remise)||0)>0 ? ' · remise '+(l.remise_type==='pct'?(Number(l.remise)+' %'):mfEur(l.remise)) : '')+'</div>'+
+      '</div><div style="font-weight:700;white-space:nowrap">'+mfEur(l.total_ht)+'</div></div>';
+  }).join('');
+
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="mfVueListe()"><span class="ar">←</span> Ma facturation</button>'+
+    '<div style="text-align:center;margin:8px 0 16px">'+
+      '<h1 style="font-size:22px">'+(avoir?'Avoir':'Facture')+' '+esc(f.numero||'')+'</h1>'+
+      '<p class="note" style="margin-top:6px;color:'+st.c+'"><b>'+st.t+'</b></p>'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="row"><div style="flex:1">Client</div><div style="font-weight:600">'+esc((MF_DOC_CLIENT&&MF_DOC_CLIENT.nom)||(f.destinataire&&f.destinataire.nom)||'—')+'</div></div>'+
+      '<div class="row"><div style="flex:1">Émise le</div><div>'+mfDate(f.date_emission)+'</div></div>'+
+      (avoir?'':'<div class="row"><div style="flex:1">Échéance</div><div'+(enRetard?' style="color:var(--dang);font-weight:700"':'')+'>'+mfDate(f.date_echeance)+'</div></div>')+
+      (f.date_paiement?'<div class="row"><div style="flex:1">Payée le</div><div>'+mfDate(f.date_paiement)+' ('+esc(f.moyen_paiement||'')+')</div></div>':'')+
+      (f.objet?'<div class="row"><div style="flex:1">Objet</div><div>'+esc(f.objet)+'</div></div>':'')+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Le détail</h2></div>'+
+      lignes+
+      '<div class="row" style="margin-top:6px"><div style="flex:1">Total HT</div><div style="font-weight:700">'+mfEur(f.total_ht)+'</div></div>'+
+      (Number(f.tva_taux)>0?'<div class="row"><div style="flex:1">TVA '+Number(f.tva_taux)+' %</div><div style="font-weight:700">'+mfEur(f.total_tva)+'</div></div>':'')+
+      '<div class="row"><div style="flex:1;font-weight:700">Total '+(Number(f.tva_taux)>0?'TTC':'')+'</div><div style="font-weight:700;font-size:17px">'+mfEur(f.total_ttc)+'</div></div>'+
+      (f.mention_tva?'<p class="note" style="font-size:11.5px;margin-top:6px">'+esc(f.mention_tva)+'</p>':'')+
+    '</div>'+
+
+    '<button class="btn primary" style="width:100%" onclick="mfDocument()">Voir le document / PDF</button>'+
+
+    (f.statut==='emise' && !avoir
+      ? '<div class="card" style="margin-top:12px">'+
+          '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Encaisser</h2></div>'+
+          '<label>Date du paiement</label><input type="date" id="mf_paie_date" value="'+aujourdhui+'">'+
+          '<label>Moyen</label><select id="mf_paie_moyen">'+
+            '<option value="virement">Virement</option><option value="stripe">Stripe</option>'+
+            '<option value="cheque">Chèque</option><option value="especes">Espèces</option>'+
+            '<option value="autre">Autre</option></select>'+
+          '<button class="btn primary" style="width:100%;margin-top:10px" onclick="mfPayer()">Marquer payée</button>'+
+        '</div>'
+      : '')+
+
+    (f.statut==='payee'
+      ? '<button class="btn ghost" style="width:100%;margin-top:8px" onclick="mfDepayer()">Annuler l\'enregistrement du paiement</button>'
+      : '')+
+
+    (f.statut!=='annulee' && !avoir
+      ? '<button class="btn ghost" style="width:100%;margin-top:8px" onclick="mfAvoir()">Émettre un avoir (annuler)</button>'
+      : '')+
+
+    (f.note_interne
+      ? '<div class="card" style="margin-top:12px"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Ma note</h2></div><p class="note">'+esc(f.note_interne)+'</p></div>'
+      : '')+
+
+    '<p class="note" style="text-align:center;margin-top:14px;font-size:11px">Facture émise : son contenu est figé définitivement.</p>'+
+  '</div>';
+}
+
+/* ---------------- l'aiguillage ---------------- */
+function renderMaFacturation(){
+  if(MF_VUE==='reglages') return renderMfReglages();
+  if(MF_VUE==='edit')     return renderMfEdit();
+  if(MF_VUE==='fiche')    return renderMfFiche();
+  return renderMfListe();
+}
+
+/* ======================= PROSPECTION (cold call) =======================
+   Le module commercial, rapatrie depuis la Console chaine-montage.
+
+   POURQUOI ICI : la Console lit batisuivi-base, qui est Firebase. Les
+   clients vivent desormais dans Supabase. La Console regarde donc une
+   base vide et ne verra jamais un client. Plutot que d'entretenir deux
+   applications, deux bases et deux authentifications, le commercial
+   rejoint l'espace editeur — la ou sont deja le parc, la marge, le
+   support et la facturation.
+
+   CONCU POUR LE RYTHME REEL : 200 a 250 appels par jour. D'ou l'ecran
+   d'appel qui tient sans defiler, les suites d'un appel en un seul
+   geste, et un import qui avale une liste collee depuis un tableur.
+
+   Prefixe PRO_ / pro*. */
+
+let PRO_LISTE=[], PRO_BILAN=null, PRO_ETAT='vide', PRO_ERR='';
+let PRO_VUE='liste';          /* 'liste' | 'fiche' | 'import' */
+let PRO_FICHE=null, PRO_FILTRE='a_faire';
+
+const PRO_STATUTS = {
+  a_appeler:   { t:'À appeler',   c:'var(--acc)' },
+  injoignable: { t:'Injoignable', c:'var(--mut)' },
+  rappeler:    { t:'À rappeler',  c:'var(--warn)' },
+  interesse:   { t:'Intéressé',   c:'var(--warn)' },
+  demo:        { t:'Démo faite',  c:'var(--acc2)' },
+  gagne:       { t:'Client',      c:'var(--ok, #1a9e5c)' },
+  perdu:       { t:'Perdu',       c:'var(--mut)' }
+};
+
+/* La passerelle vers la fonction serveur, calquee sur celle de la
+   facturation : l'application ne recoit aucun privilege, elle pose une
+   question et le serveur verifie que c'est bien moi. */
+function commercialApiCall(action, payload){
+  if(BACKEND!=='supabase') return Promise.reject(new Error("La prospection n'existe que sur la nouvelle base."));
+  const c = BS._sb.demarrer();
+  if(!c) return Promise.reject(new Error("Service indisponible."));
+  return c.functions.invoke('commercial', {
+    body: Object.assign({action:action}, payload||{})
+  }).then(async function(r){
+    if(r.error){
+      let msg = "Service indisponible.";
+      try{ const j = await r.error.context.json(); if(j && j.erreur) msg = j.erreur; }catch(_){ }
+      throw new Error(msg);
+    }
+    if(r.data && r.data.erreur) throw new Error(r.data.erreur);
+    return r.data;
+  });
+}
+
+function proOuvrir(){
+  SCREEN='prospect'; PRO_VUE='liste'; PRO_FICHE=null; render(); toTop(); proCharger();
+}
+function proRetour(){ SCREEN='parc'; PRO_FICHE=null; render(); toTop(); }
+function proVueListe(){ PRO_VUE='liste'; PRO_FICHE=null; render(); toTop(); }
+function proFiltre(f){ PRO_FILTRE=f; PRO_VUE='liste'; render(); toTop(); }
+
+function proCharger(){
+  PRO_ETAT='chargement'; PRO_ERR='';
+  if(SCREEN==='prospect') render();
+  commercialApiCall('liste',{}).then(function(r){
+    PRO_LISTE=(r&&r.prospects)||[]; PRO_BILAN=(r&&r.bilan)||null; PRO_ETAT='pret';
+    if(SCREEN==='prospect') render();
+  }).catch(function(e){
+    PRO_ERR=(e&&e.message)||"Service indisponible."; PRO_ETAT='erreur';
+    if(SCREEN==='prospect') render();
+  });
+}
+
+function proAujourdhui(){ return new Date().toISOString().slice(0,10); }
+function proDate(d){
+  if(!d) return '—';
+  const p=String(d).slice(0,10).split('-');
+  return p.length===3 ? (p[2]+'/'+p[1]) : String(d);
+}
+
+/* La file du jour : ce qui doit etre appele maintenant, et rien d'autre.
+   D'abord les rappels promis (on a donne une date, on la tient), puis
+   les numeros jamais appeles. */
+function proFileDuJour(){
+  const auj = proAujourdhui();
+  const rappels = PRO_LISTE.filter(function(p){
+    return (p.statut==='rappeler'||p.statut==='interesse') && p.relance && p.relance<=auj;
+  }).sort(function(a,b){ return String(a.relance).localeCompare(String(b.relance)); });
+  const neufs = PRO_LISTE.filter(function(p){ return p.statut==='a_appeler'; });
+  return rappels.concat(neufs);
+}
+
+function proListeAffichee(){
+  if(PRO_FILTRE==='a_faire') return proFileDuJour();
+  if(PRO_FILTRE==='tous')    return PRO_LISTE;
+  return PRO_LISTE.filter(function(p){ return p.statut===PRO_FILTRE; });
+}
+
+/* ---------------- l'ecran principal ---------------- */
+function renderProspection(){
+  if(PRO_VUE==='fiche')  return renderProFiche();
+  if(PRO_VUE==='import') return renderProImport();
+
+  let corps='';
+  if(PRO_ETAT==='chargement'){
+    corps='<div class="card"><p class="note">Lecture de ta liste…</p></div>';
+  } else if(PRO_ETAT==='erreur'){
+    corps='<div class="card"><p class="note" style="color:var(--dang)">'+esc(PRO_ERR)+'</p>'+
+      '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="proCharger()">Réessayer</button></div>';
+  } else {
+    const b = PRO_BILAN || {par_statut:{},total:0,a_rappeler:0,appels_aujourdhui:0,taux:null};
+    const st = b.par_statut||{};
+    const file = proFileDuJour();
+    const liste = proListeAffichee();
+
+    corps =
+      '<div class="card">'+
+        '<div class="row"><div style="flex:1">Appels passés aujourd\'hui</div>'+
+          '<div style="font-weight:700;font-size:17px">'+(b.appels_aujourdhui||0)+'</div></div>'+
+        '<div class="row"><div style="flex:1">Reste à appeler</div>'+
+          '<div style="font-weight:700">'+file.length+'</div></div>'+
+        '<div class="row"><div style="flex:1">Clients signés</div>'+
+          '<div style="font-weight:700;color:var(--ok, #1a9e5c)">'+(st.gagne||0)+' / 60</div></div>'+
+        (b.taux!==null && b.taux!==undefined
+          ? '<div class="row"><div style="flex:1" class="note">Taux de transformation</div>'+
+            '<div class="note">'+b.taux+' % des dossiers clos</div></div>'
+          : '')+
+      '</div>'+
+
+      (file.length
+        ? '<button class="btn primary" style="width:100%;margin-bottom:10px" onclick="proAppelerSuivant()">'+
+          '📞 Appeler le suivant ('+file.length+')</button>'
+        : '<div class="card"><p class="note" style="margin:0">Plus personne à appeler aujourd\'hui. '+
+          'Importe une nouvelle liste, ou reviens demain pour les rappels.</p></div>')+
+
+      '<div class="subtabs" style="margin-bottom:10px;overflow-x:auto;white-space:nowrap">'+
+        ['a_faire','a_appeler','rappeler','interesse','demo','gagne','perdu','tous'].map(function(f){
+          const lb = f==='a_faire' ? 'À faire' : (f==='tous' ? 'Tous' : PRO_STATUTS[f].t);
+          const n  = f==='a_faire' ? file.length : (f==='tous' ? PRO_LISTE.length : (st[f]||0));
+          return '<button class="'+(PRO_FILTRE===f?'on':'')+'" onclick="proFiltre(\'' + f + '\')">'+
+                 lb+' ('+n+')</button>';
+        }).join('')+
+      '</div>'+
+
+      '<div class="card">'+
+        (liste.length
+          ? liste.slice(0,200).map(proLigne).join('')
+          : '<p class="note" style="margin:0">Aucun prospect dans cette liste.</p>')+
+        (liste.length>200 ? '<p class="note" style="font-size:11px;margin-top:8px">'+(liste.length-200)+' de plus…</p>' : '')+
+      '</div>';
+  }
+
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="proRetour()"><span class="ar">←</span> Parc client</button>'+
+    '<div style="text-align:center;margin:8px 0 16px">'+
+      '<h1 style="font-size:22px">Prospection</h1>'+
+      '<p class="note" style="margin-top:6px">Mon fichier d\'appel · Massilia Consulting</p>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+      '<button class="btn ghost" style="flex:1" onclick="proNouveau()">+ Un prospect</button>'+
+      '<button class="btn ghost" style="flex:1" onclick="proVueImport()">Importer une liste</button>'+
+    '</div>'+
+    corps+
+  '</div>';
+}
+
+function proLigne(p){
+  const s = PRO_STATUTS[p.statut] || {t:p.statut, c:'var(--mut)'};
+  const auj = proAujourdhui();
+  const enRetard = p.relance && p.relance < auj && (p.statut==='rappeler'||p.statut==='interesse');
+  return '<div class="task-row" style="cursor:pointer" onclick="proOuvrirFiche(\'' + esc(String(p.id)) + '\')">'+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="font-weight:600;font-size:13.5px">'+esc(p.entreprise||'')+'</div>'+
+      '<div class="note" style="font-size:11px">'+
+        esc([p.ville, p.metier].filter(Boolean).join(' · ') || (p.telephone||''))+
+        (p.nb_appels>0 ? ' · '+p.nb_appels+' appel'+(p.nb_appels>1?'s':'') : '')+
+      '</div>'+
+    '</div>'+
+    '<div style="text-align:right;white-space:nowrap">'+
+      '<div style="font-size:11px;color:'+s.c+'">'+s.t+'</div>'+
+      (p.relance ? '<div class="note" style="font-size:10.5px'+(enRetard?';color:var(--dang)':'')+'">'+proDate(p.relance)+'</div>' : '')+
+    '</div>'+
+  '</div>';
+}
+
+/* ---------------- la fiche d'appel ----------------
+   L'ecran qu'on regarde le combine a l'oreille. Le numero en gros,
+   les suites de l'appel en un geste. */
+function proAppelerSuivant(){
+  const file = proFileDuJour();
+  if(!file.length){ toast("Plus personne à appeler."); return; }
+  proOuvrirFiche(file[0].id);
+}
+function proOuvrirFiche(id){
+  PRO_FICHE = PRO_LISTE.filter(function(p){ return String(p.id)===String(id); })[0] || null;
+  if(!PRO_FICHE){ toast("Prospect introuvable"); return; }
+  PRO_VUE='fiche'; render(); toTop();
+}
+function proNouveau(){
+  PRO_FICHE = { id:null, entreprise:'', contact:'', telephone:'', ville:'',
+                metier:'', email:'', statut:'a_appeler', notes:'', nb_appels:0 };
+  PRO_VUE='fiche'; render(); toTop();
+}
+
+function proLire(){
+  const v=function(id){ const e=document.getElementById(id); return e?String(e.value||'').trim():null; };
+  if(!PRO_FICHE) return;
+  const champs=['entreprise','contact','telephone','ville','metier','email','notes'];
+  champs.forEach(function(c){ const x=v('pr_'+c); if(x!==null) PRO_FICHE[c]=x; });
+  const r=v('pr_relance'); if(r!==null) PRO_FICHE.relance=r||null;
+}
+
+function proEnregistrer(apres){
+  proLire();
+  if(!PRO_FICHE) return;
+  if(!(PRO_FICHE.entreprise||'').trim()){ toast("Il faut au moins le nom de l'entreprise."); return; }
+  const valeurs={};
+  ['entreprise','contact','telephone','email','ville','metier','notes','relance','statut']
+    .forEach(function(c){ valeurs[c]=PRO_FICHE[c]||null; });
+  commercialApiCall('maj',{ id:PRO_FICHE.id||null, valeurs:valeurs })
+    .then(function(r){
+      if(r&&r.id) PRO_FICHE.id=r.id;
+      toast("Enregistré ✅");
+      if(typeof apres==='function') apres(); else { proCharger(); proVueListe(); }
+    })
+    .catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+
+/* Les suites d'un appel, en un seul aller-retour serveur. */
+function proSuite(statut, joursAvant){
+  if(!PRO_FICHE || !PRO_FICHE.id){ toast("Enregistre d'abord ce prospect."); return; }
+  proLire();
+  let relance = null;
+  if(joursAvant){
+    const d = new Date(); d.setDate(d.getDate()+joursAvant);
+    relance = d.toISOString().slice(0,10);
+  }
+  commercialApiCall('appel',{
+    id:PRO_FICHE.id, statut:statut, relance:relance, notes:PRO_FICHE.notes||''
+  }).then(function(){
+    toast((PRO_STATUTS[statut]||{}).t+' ✅');
+    proCharger();
+    /* on enchaine : c'est tout l'interet quand on passe 200 appels */
+    const file = proFileDuJour().filter(function(p){ return String(p.id)!==String(PRO_FICHE.id); });
+    if(file.length) proOuvrirFiche(file[0].id); else proVueListe();
+  }).catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+
+function proSupprimer(){
+  if(!PRO_FICHE || !PRO_FICHE.id){ proVueListe(); return; }
+  if(!confirm("Retirer « "+(PRO_FICHE.entreprise||'')+" » de ta liste ?")) return;
+  commercialApiCall('supprimer',{ id:PRO_FICHE.id })
+    .then(function(){ toast("Retiré"); proCharger(); proVueListe(); })
+    .catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+
+function proConvertir(){
+  if(!PRO_FICHE || !PRO_FICHE.id){ toast("Enregistre d'abord ce prospect."); return; }
+  const suggere = String(PRO_FICHE.entreprise||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
+  const slug = prompt("Adresse de son espace (taloche.fr/?client=…) :", suggere);
+  if(!slug) return;
+  const formule = confirm("Formule Premium ?\n\nOK = Premium · Annuler = Basique") ? 'premium' : 'basique';
+  commercialApiCall('convertir',{ id:PRO_FICHE.id, slug:slug.trim().toLowerCase(), formule:formule, nom:PRO_FICHE.entreprise })
+    .then(function(r){
+      const c=(r&&r.client)||{};
+      alert("Espace créé.\n\nAdresse : "+(c.adresse||'')+"\nCode patron : "+(c.code_patron||'')+
+            "\n\nNote ce code : il ne sera plus affiché.");
+      proCharger(); proVueListe();
+    })
+    .catch(function(e){ toast((e&&e.message)||"Refusé"); });
+}
+
+function renderProFiche(){
+  const p = PRO_FICHE || {};
+  const neuf = !p.id;
+  const s = PRO_STATUTS[p.statut] || PRO_STATUTS.a_appeler;
+
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="proVueListe()"><span class="ar">←</span> Ma liste</button>'+
+    '<div style="text-align:center;margin:8px 0 14px">'+
+      '<h1 style="font-size:21px">'+(neuf?'Nouveau prospect':esc(p.entreprise||''))+'</h1>'+
+      (neuf?'':'<p class="note" style="margin-top:6px;color:'+s.c+'"><b>'+s.t+'</b>'+
+        (p.nb_appels>0?' · '+p.nb_appels+' appel'+(p.nb_appels>1?'s':''):'')+'</p>')+
+    '</div>'+
+
+    (!neuf && p.telephone
+      ? '<a class="btn primary" style="width:100%;text-align:center;text-decoration:none;display:block;margin-bottom:10px" '+
+        'href="tel:'+esc(p.telephone)+'">📞 '+esc(p.telephone)+'</a>'
+      : '')+
+
+    '<div class="card">'+
+      '<label>Entreprise</label><input id="pr_entreprise" value="'+esc(p.entreprise||'')+'">'+
+      '<label>Téléphone</label><input id="pr_telephone" type="tel" value="'+esc(p.telephone||'')+'">'+
+      '<div style="display:flex;gap:8px">'+
+        '<div style="flex:1"><label>Ville</label><input id="pr_ville" value="'+esc(p.ville||'')+'"></div>'+
+        '<div style="flex:1"><label>Métier</label><input id="pr_metier" value="'+esc(p.metier||'')+'"></div>'+
+      '</div>'+
+      '<label>Interlocuteur</label><input id="pr_contact" value="'+esc(p.contact||'')+'">'+
+      '<label>Email</label><input id="pr_email" type="email" value="'+esc(p.email||'')+'">'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<label>Ce que je note</label>'+
+      '<textarea id="pr_notes" rows="4" placeholder="Ce qu\'il a dit, ce qu\'il utilise aujourd\'hui, quand le rappeler…">'+esc(p.notes||'')+'</textarea>'+
+    '</div>'+
+
+    (neuf
+      ? '<button class="btn primary" style="width:100%" onclick="proEnregistrer()">Enregistrer</button>'
+      : '<div class="card">'+
+          '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Après l\'appel</h2></div>'+
+          '<div class="btngrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+            '<button class="btn ghost" onclick="proSuite(\'injoignable\',3)">Pas décroché</button>'+
+            '<button class="btn ghost" onclick="proSuite(\'rappeler\',7)">Rappeler dans 7 j</button>'+
+            '<button class="btn ghost" onclick="proSuite(\'interesse\',2)">Intéressé</button>'+
+            '<button class="btn ghost" onclick="proSuite(\'demo\',3)">Démo faite</button>'+
+            '<button class="btn ghost" onclick="proSuite(\'perdu\',0)">Pas intéressé</button>'+
+            '<button class="btn ghost" onclick="proEnregistrer()">Juste enregistrer</button>'+
+          '</div>'+
+          '<p class="note" style="font-size:11px;margin-top:10px">Chaque bouton compte l\'appel, pose la date de rappel et ouvre le prospect suivant.</p>'+
+        '</div>'+
+        '<label style="display:block;margin-top:4px">Rappeler le</label>'+
+        '<input type="date" id="pr_relance" value="'+esc(String(p.relance||'').slice(0,10))+'">'+
+        '<button class="btn primary" style="width:100%;margin-top:12px" onclick="proConvertir()">Il achète : créer son espace</button>'+
+        '<button class="linkbtn" style="display:block;margin:12px auto 0" onclick="proSupprimer()">Retirer de ma liste</button>')+
+  '</div>';
+}
+
+/* ---------------- l'import d'une liste ---------------- */
+function proVueImport(){ PRO_VUE='import'; render(); toTop(); }
+
+function proImporter(){
+  const t=document.getElementById('pr_import');
+  const src=document.getElementById('pr_source');
+  const texte=t?t.value:'';
+  if(!texte.trim()){ toast("Colle d'abord ta liste."); return; }
+  toast("Import en cours…");
+  commercialApiCall('importer',{ texte:texte, source:(src?src.value:'')||'import' })
+    .then(function(r){
+      alert("Import terminé.\n\n"+
+            (r.crees||0)+" prospect(s) ajouté(s)\n"+
+            (r.doublons||0)+" doublon(s) écarté(s)\n"+
+            (r.ignores||0)+" ligne(s) illisible(s)");
+      proCharger(); proVueListe();
+    })
+    .catch(function(e){ toast((e&&e.message)||"Import refusé"); });
+}
+
+function renderProImport(){
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="proVueListe()"><span class="ar">←</span> Ma liste</button>'+
+    '<div style="text-align:center;margin:8px 0 16px">'+
+      '<h1 style="font-size:22px">Importer une liste</h1>'+
+      '<p class="note" style="margin-top:6px">Colle directement depuis ton tableur.</p>'+
+    '</div>'+
+    '<div class="card">'+
+      '<p style="font-size:13px;margin:0 0 8px">Une ligne par entreprise, les colonnes séparées par un point-virgule :</p>'+
+      '<p class="note" style="font-size:12px;margin:0 0 10px;font-family:monospace">'+
+        'entreprise ; téléphone ; ville ; interlocuteur ; métier</p>'+
+      '<p class="note" style="font-size:11.5px;margin:0">Seul le nom est obligatoire. '+
+        'Les numéros déjà présents dans ta liste sont écartés automatiquement — '+
+        'rien n\'agace plus un artisan qu\'un second démarchage identique.</p>'+
+    '</div>'+
+    '<div class="card">'+
+      '<label>D\'où vient cette liste ?</label>'+
+      '<input id="pr_source" placeholder="ex : Pages Jaunes Côte-d\'Or" value="">'+
+      '<label>Ta liste</label>'+
+      '<textarea id="pr_import" rows="10" placeholder="Durand Maçonnerie;0380112233;Dijon;Paul Durand;maçon&#10;Carrelage du Sud;0380445566;Beaune"></textarea>'+
+    '</div>'+
+    '<button class="btn primary" style="width:100%" onclick="proImporter()">Importer</button>'+
+    '<p class="note" style="text-align:center;margin-top:12px;font-size:11px">2000 lignes au maximum par import.</p>'+
+  '</div>';
+}
+
+/* ==================== PARCOURS DE DEMARRAGE (patron) ====================
+   La premiere fois qu'un patron se connecte chez un VRAI client, il
+   traverse une configuration guidee avant d'arriver sur l'app.
+
+   POURQUOI : la checklist « guide de demarrage » demandait au patron
+   d'aller chercher lui-meme dix reglages dans les parametres. Personne
+   ne le faisait, et l'app restait a moitie configuree — sans SIREN, la
+   premiere facture est deja non conforme.
+
+   REGLE ABSOLUE : jamais sur un espace de demonstration. Lenny montre
+   l'app a un prospect sur un espace « demo… » ; derouler une
+   configuration devant lui serait desastreux. Ces espaces arrivent
+   directement sur l'app remplie de donnees de demo.
+
+   Le marqueur d'achevement est ecrit en BASE (config de l'entreprise),
+   pas dans le navigateur : changer de telephone ne relance pas le
+   parcours, et le patron ne le repasse pas a chaque appareil. */
+
+let PARCOURS = null;   /* numero de l'etape en cours, ou null */
+
+/* Cet espace est-il une demonstration ?
+   On lit le slug de l'entreprise DU COMPTE connecte, pas celui de
+   l'adresse : une fois connecte, l'adresse ne fait plus foi. */
+function espaceDemo(){
+  try{
+    const e = (typeof BS!=='undefined' && BS._sb) ? BS._sb.entreprise : null;
+    const slug = (e && e.slug) || '';
+    if(slug) return /^demo/i.test(slug);
+    /* pas encore d'entreprise chargee : on ne se prononce pas, et par
+       prudence on ne declenche pas le parcours */
+    return true;
+  }catch(_){ return true; }
+}
+
+function parcoursFait(){
+  try{ return !!(CONFIG_DB && CONFIG_DB.parcoursFait); }catch(_){ return false; }
+}
+
+/* Faut-il le declencher ? Toutes les conditions doivent tenir. */
+function parcoursNecessaire(){
+  try{
+    if(!ME || ME.role !== 'boss') return false;   /* le patron seul */
+    if(typeof FANTOME!=='undefined' && FANTOME) return false; /* pas en mode fantome */
+    if(espaceDemo()) return false;                /* jamais sur une demo */
+    if(parcoursFait()) return false;              /* deja traverse */
+    return true;
+  }catch(_){ return false; }
+}
+
+function parcoursActif(){ return PARCOURS !== null; }
+
+function parcoursDemarrerSiBesoin(){
+  if(PARCOURS === null && parcoursNecessaire()){ PARCOURS = 0; render(); toTop(); }
+}
+
+const PARCOURS_ETAPES = ['bienvenue','identite','coordonnees','legal','argent','equipe','fin'];
+
+function parcoursSuivant(){
+  parcoursEnregistrerEtape();
+  if(PARCOURS < PARCOURS_ETAPES.length-1){ PARCOURS++; render(); toTop(); }
+  else parcoursTerminer();
+}
+function parcoursPasser(){
+  if(PARCOURS < PARCOURS_ETAPES.length-1){ PARCOURS++; render(); toTop(); }
+  else parcoursTerminer();
+}
+function parcoursPrecedent(){
+  parcoursEnregistrerEtape();
+  if(PARCOURS > 0){ PARCOURS--; render(); toTop(); }
+}
+
+/* Lit les champs de l'etape affichee et les range au bon endroit.
+   On ne touche qu'aux champs presents a l'ecran : chaque etape
+   n'ecrase que ce qu'elle a demande. */
+function parcoursEnregistrerEtape(){
+  const v = function(id){ const e=document.getElementById(id); return e ? String(e.value||'').trim() : null; };
+  let touche = false;
+
+  const nom = v('pc_nom');
+  if(nom !== null && nom){ CONFIG_DB.nom = nom; touche = true; }
+
+  const tel = v('pc_tel'), mail = v('pc_email'), adr2 = v('pc_adresse');
+  if(tel !== null || mail !== null || adr2 !== null){
+    const c = Object.assign({}, CONFIG_DB.contact || {});
+    if(tel  !== null) c.tel = tel;
+    if(mail !== null) c.email = mail;
+    if(adr2 !== null) c.adresse = adr2;
+    CONFIG_DB.contact = c; touche = true;
+  }
+
+  const siren = v('pc_siren'), adr = v('pc_adr'), cp = v('pc_cp'), ville = v('pc_ville');
+  if(siren !== null){ CONFIG_DB.siren = siren; touche = true; }
+  if(adr   !== null){ CONFIG_DB.adr   = adr;   touche = true; }
+  if(cp    !== null){ CONFIG_DB.cp    = cp;    touche = true; }
+  if(ville !== null){ CONFIG_DB.ville = ville; touche = true; }
+
+  const ass = v('pc_assur'), assn = v('pc_assurnum');
+  if(ass  !== null){ CONFIG_DB.assurance    = ass;  touche = true; }
+  if(assn !== null){ CONFIG_DB.assuranceNum = assn; touche = true; }
+
+  const tva = v('pc_tva'), iban = v('pc_iban'), bic = v('pc_bic');
+  if(tva !== null && tva !== ''){ CONFIG_DB.tvaRate = Number(String(tva).replace(',','.'))||0; touche = true; }
+  if(iban !== null){ CONFIG_DB.iban = iban; touche = true; }
+  if(bic  !== null){ CONFIG_DB.bic  = bic;  touche = true; }
+
+  if(touche){ try{ saveConfigDB(); }catch(_){ } }
+}
+
+function parcoursTerminer(){
+  parcoursEnregistrerEtape();
+  try{
+    CONFIG_DB.parcoursFait = true;
+    CONFIG_DB.parcoursDate = Date.now();
+    saveConfigDB();
+  }catch(_){ }
+  PARCOURS = null;
+  try{ lsSet('onboarded_'+((ME&&ME.role)||'boss'), 1); }catch(_){ }
+  render(); toTop();
+  try{ toast("Tout est prêt. Bienvenue !"); }catch(_){ }
+}
+
+/* Permet de le refaire depuis les parametres, si besoin. */
+function parcoursRelancer(){
+  if(!confirm("Refaire la configuration guidée ? Tes réglages actuels sont conservés.")) return;
+  PARCOURS = 0; closeModal(); render(); toTop();
+}
+
+/* ---------------------------- l'ecran ---------------------------- */
+function parcoursCadre(titre, sousTitre, corps, options){
+  const o = options || {};
+  const n = PARCOURS_ETAPES.length - 1;   /* la bienvenue ne compte pas */
+  const pts = PARCOURS_ETAPES.map(function(_,i){
+    if(i===0) return '';
+    return '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 3px;background:'+
+           (i<=PARCOURS ? 'var(--acc)' : 'var(--line)')+'"></span>';
+  }).join('');
+
+  return '<div class="center-wrap" style="justify-content:flex-start;max-width:480px">'+
+    (PARCOURS>0 ? '<div style="text-align:center;margin:10px 0 4px">'+pts+'</div>'+
+                  '<p class="note" style="text-align:center;font-size:11px;margin:0 0 10px">Étape '+PARCOURS+' sur '+n+'</p>'
+                : '')+
+    '<div style="text-align:center;margin:8px 0 18px">'+
+      '<h1 style="font-size:23px;line-height:1.25">'+titre+'</h1>'+
+      (sousTitre ? '<p class="note" style="margin-top:8px;font-size:13px">'+sousTitre+'</p>' : '')+
+    '</div>'+
+    corps+
+    '<button class="btn primary" style="width:100%;margin-top:14px" onclick="'+(o.action||'parcoursSuivant()')+'">'+
+      (o.libelle||'Continuer')+'</button>'+
+    (o.passable!==false && PARCOURS>0
+      ? '<button class="linkbtn" style="display:block;margin:12px auto 0" onclick="parcoursPasser()">Je le ferai plus tard</button>'
+      : '')+
+    (PARCOURS>1
+      ? '<button class="linkbtn" style="display:block;margin:10px auto 0;opacity:.6" onclick="parcoursPrecedent()">← Revenir en arrière</button>'
+      : '')+
+  '</div>';
+}
+
+function renderParcours(){
+  const etape = PARCOURS_ETAPES[PARCOURS] || 'fin';
+  const ci = (typeof contactInfo==='function') ? contactInfo() : {};
+  const C  = CONFIG_DB || {};
+
+  if(etape==='bienvenue'){
+    app.innerHTML = parcoursCadre(
+      'Bienvenue sur Taloche',
+      "Prenons cinq minutes pour configurer ton entreprise. Tu pourras tout modifier plus tard, et passer les questions qui ne te concernent pas.",
+      '<div class="card">'+
+        '<p style="font-size:13.5px;line-height:1.6;margin:0">On va voir ensemble :</p>'+
+        '<ul style="font-size:13px;line-height:1.9;margin:10px 0 0;padding-left:20px">'+
+          '<li>le nom et les couleurs de ton entreprise</li>'+
+          '<li>tes coordonnées</li>'+
+          '<li>tes mentions obligatoires (SIREN, décennale)</li>'+
+          '<li>ta TVA et ton IBAN</li>'+
+          '<li>ton équipe</li>'+
+        '</ul>'+
+      '</div>',
+      { libelle:'C\'est parti', passable:false }
+    );
+    return;
+  }
+
+  if(etape==='identite'){
+    app.innerHTML = parcoursCadre(
+      'Ton entreprise',
+      "C'est ce que verront ton équipe et tes clients, sur l'app comme sur tes devis.",
+      '<div class="card">'+
+        '<label>Nom de l\'entreprise</label>'+
+        '<input id="pc_nom" value="'+esc((typeof coName==='function'?coName():'')||'')+'" placeholder="ex : Dupont Rénovation">'+
+        '<p class="note" style="font-size:11.5px;margin-top:10px">Ton logo et tes couleurs se règlent ensuite dans Paramètres → Entreprise. Rien ne presse.</p>'+
+      '</div>'
+    );
+    return;
+  }
+
+  if(etape==='coordonnees'){
+    app.innerHTML = parcoursCadre(
+      'Comment te joindre',
+      "Ces informations apparaissent sur tes devis, tes factures et l'espace que tu partages à tes clients.",
+      '<div class="card">'+
+        '<label>Téléphone</label><input id="pc_tel" type="tel" value="'+esc(ci.tel||'')+'" placeholder="06 12 34 56 78">'+
+        '<label>Email</label><input id="pc_email" type="email" value="'+esc(ci.email||'')+'" placeholder="contact@monentreprise.fr">'+
+        '<label>Adresse affichée à tes clients</label>'+
+        '<input id="pc_adresse" value="'+esc(ci.adresse||'')+'" placeholder="12 rue des Artisans, 21000 Dijon">'+
+      '</div>'
+    );
+    return;
+  }
+
+  if(etape==='legal'){
+    app.innerHTML = parcoursCadre(
+      'Tes mentions obligatoires',
+      "Sans elles, un devis ou une facture n'est pas conforme. Autant les saisir une bonne fois.",
+      '<div class="card">'+
+        '<label>SIREN</label><input id="pc_siren" inputmode="numeric" value="'+esc(C.siren||'')+'" placeholder="9 chiffres">'+
+        '<label>Adresse du siège</label><input id="pc_adr" value="'+esc(C.adr||'')+'" placeholder="12 rue des Artisans">'+
+        '<div style="display:flex;gap:8px">'+
+          '<div style="flex:1"><label>Code postal</label><input id="pc_cp" inputmode="numeric" value="'+esc(C.cp||'')+'"></div>'+
+          '<div style="flex:2"><label>Ville</label><input id="pc_ville" value="'+esc(C.ville||'')+'"></div>'+
+        '</div>'+
+        '<label>Assurance décennale</label>'+
+        '<input id="pc_assur" value="'+esc(C.assurance||'')+'" placeholder="ex : AXA, agence de Dijon">'+
+        '<label>Numéro de contrat</label>'+
+        '<input id="pc_assurnum" value="'+esc(C.assuranceNum||'')+'">'+
+        '<p class="note" style="font-size:11.5px;margin-top:10px">La décennale est une mention obligatoire dans le bâtiment.</p>'+
+      '</div>'
+    );
+    return;
+  }
+
+  if(etape==='argent'){
+    const tva = (C.tvaRate!==undefined && C.tvaRate!==null) ? C.tvaRate : '';
+    app.innerHTML = parcoursCadre(
+      'TVA et paiement',
+      "De quoi établir des factures justes et être payé plus vite.",
+      '<div class="card">'+
+        '<label>Ton taux de TVA habituel (%)</label>'+
+        '<input id="pc_tva" inputmode="decimal" value="'+esc(String(tva))+'" placeholder="20">'+
+        '<p class="note" style="font-size:11.5px;margin:6px 0 12px">Mets <b>0</b> si tu es en franchise de TVA. Tu pourras choisir un autre taux ligne par ligne (10 % rénovation, 5,5 % énergie).</p>'+
+        '<label>IBAN</label><input id="pc_iban" value="'+esc(C.iban||'')+'" placeholder="FR76 ...">'+
+        '<label>BIC</label><input id="pc_bic" value="'+esc(C.bic||'')+'">'+
+        '<p class="note" style="font-size:11.5px;margin-top:10px">Ton IBAN s\'imprime sur tes factures : tes clients n\'ont plus à te le demander.</p>'+
+      '</div>'
+    );
+    return;
+  }
+
+  if(etape==='equipe'){
+    const nb = (typeof TEAM==='object' && TEAM) ? Object.keys(TEAM).length : 0;
+    app.innerHTML = parcoursCadre(
+      'Ton équipe',
+      "Chaque membre a son propre compte : il pointe, envoie ses photos et ses notes de frais depuis son téléphone.",
+      '<div class="card">'+
+        '<p style="font-size:13.5px;margin:0 0 10px">'+
+          (nb>1 ? 'Ton équipe compte déjà <b>'+nb+' membres</b>.'
+                : 'Tu es seul pour l\'instant. Tu peux inviter quelqu\'un maintenant, ou t\'en occuper plus tard.')+
+        '</p>'+
+        '<button class="btn ghost" style="width:100%" onclick="parcoursInviter()">Créer un code d\'invitation</button>'+
+        '<p class="note" style="font-size:11.5px;margin-top:10px">Tu transmets le code à ton salarié : il crée son compte lui-même, sans que tu aies à gérer un mot de passe.</p>'+
+      '</div>'
+    );
+    return;
+  }
+
+  /* fin */
+  const manque = [];
+  if(!C.siren) manque.push('ton SIREN');
+  if(!(C.assurance||C.assuranceNum)) manque.push('ta décennale');
+  if(!(C.iban||'').trim()) manque.push('ton IBAN');
+  if(C.tvaRate===undefined || C.tvaRate===null) manque.push('ta TVA');
+
+  app.innerHTML = parcoursCadre(
+    'Tout est prêt',
+    "Ton espace est configuré. Il ne reste plus qu'à créer ton premier chantier.",
+    '<div class="card">'+
+      (manque.length
+        ? '<p style="font-size:13.5px;margin:0 0 8px">Il te reste à renseigner '+esc(manque.join(', '))+'.</p>'+
+          '<p class="note" style="font-size:11.5px;margin:0">Tu les retrouveras dans <b>Paramètres → Entreprise</b>, quand tu voudras. Ce n\'est pas bloquant, mais tes documents ne seront pas encore conformes.</p>'
+        : '<p style="font-size:13.5px;margin:0">Tout est renseigné. Tes devis et tes factures sont conformes dès maintenant.</p>')+
+    '</div>',
+    { libelle:'Entrer dans l\'app', action:'parcoursTerminer()', passable:false }
+  );
+}
+
+/* Invitation depuis le parcours : on reutilise la fonction existante,
+   sans la dupliquer. */
+function parcoursInviter(){
+  try{
+    if(typeof genInvite==='function'){ genInvite(); return; }
+  }catch(_){ }
+  toast("L'invitation se fait dans Équipe.");
+}
+
+/* ============ MES FACTURES TALOCHE — ce que l'ARTISAN voit ============
+   Le patron consulte les factures que Massilia lui a envoyees.
+
+   Lecture seule, et ce n'est pas qu'une affaire d'ecran : la base
+   n'accorde que le SELECT, la regle exige le role patron, et la
+   fonction mes_factures_recues() ne renvoie ni note interne ni
+   reference de paiement. Un ouvrier n'obtient rien, meme en
+   interrogeant la base directement.
+
+   Prefixe MFR_ pour « Mes Factures Recues ». A ne pas confondre avec
+   MF_ (ma facturation, cote editeur) ni avec les factures que
+   l'artisan envoie a SES clients. */
+
+let MFR_LISTE=[], MFR_ETAT='vide', MFR_ERR='';
+
+function mfrCharger(force){
+  if(!isBoss()) return;
+  if(MFR_ETAT==='chargement') return;
+  if(MFR_ETAT==='pret' && !force) return;
+  MFR_ETAT='chargement';
+  const c = (typeof BS!=='undefined' && BS._sb && BS._sb.demarrer) ? BS._sb.demarrer() : null;
+  if(!c){ MFR_ETAT='erreur'; MFR_ERR="Connexion au serveur indisponible."; return; }
+  c.rpc('mes_factures_recues').then(function(r){
+    if(r.error){ MFR_ETAT='erreur'; MFR_ERR=r.error.message||'Lecture impossible.'; }
+    else { MFR_LISTE = r.data || []; MFR_ETAT='pret'; MFR_ERR=''; }
+    if(HUB==='params' && HTAB==='entreprise') render();
+  }).catch(function(e){
+    MFR_ETAT='erreur'; MFR_ERR=(e&&e.message)||'Lecture impossible.';
+    if(HUB==='params' && HTAB==='entreprise') render();
+  });
+}
+
+function mfrDate(d){
+  if(!d) return '—';
+  const p=String(d).slice(0,10).split('-');
+  return p.length===3 ? (p[2]+'/'+p[1]+'/'+p[0]) : String(d);
+}
+function mfrEur(n){ return (Number(n)||0).toFixed(2).replace('.',',')+' €'; }
+
+function mfrImpayees(){
+  return MFR_LISTE.filter(function(f){ return f.statut==='emise' && f.type!=='avoir'; });
+}
+function mfrEnRetard(){
+  return MFR_LISTE.filter(function(f){ return f.en_retard===true && f.type!=='avoir'; });
+}
+
+/* La carte dans Paramètres > Entreprise. Patron uniquement. */
+function mesFacturesCard(){
+  if(!isBoss()) return '';
+
+  if(MFR_ETAT==='vide'){ setTimeout(function(){ mfrCharger(); }, 0); }
+
+  if(MFR_ETAT==='vide' || MFR_ETAT==='chargement'){
+    return '<div class="card"><div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">'+icone('receipt')+' Mes factures Taloche</h2></div>'+
+      '<p class="note" style="margin:0">Lecture…</p></div>';
+  }
+  if(MFR_ETAT==='erreur'){
+    return '<div class="card"><div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">'+icone('receipt')+' Mes factures Taloche</h2></div>'+
+      '<p class="note" style="margin:0;color:var(--dang)">'+esc(MFR_ERR)+'</p>'+
+      '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="mfrCharger(true)">Réessayer</button></div>';
+  }
+  if(!MFR_LISTE.length){
+    return '<div class="card"><div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">'+icone('receipt')+' Mes factures Taloche</h2></div>'+
+      '<p class="note" style="margin:0">Aucune facture pour le moment.</p></div>';
+  }
+
+  const impayees = mfrImpayees();
+  const retard   = mfrEnRetard();
+  let du = 0;
+  impayees.forEach(function(f){ du += Number(f.total_ttc)||0; });
+  du = Math.round(du*100)/100;
+
+  const lignes = MFR_LISTE.slice(0,6).map(function(f){
+    const avoir = f.type==='avoir';
+    let etat, coul;
+    if(avoir)                    { etat='Avoir';     coul='var(--mut)'; }
+    else if(f.statut==='payee')  { etat='Payée';     coul='var(--ok, #1a9e5c)'; }
+    else if(f.statut==='annulee'){ etat='Annulée';   coul='var(--mut)'; }
+    else if(f.en_retard)         { etat='En retard'; coul='var(--dang)'; }
+    else                         { etat='À payer';   coul='var(--acc)'; }
+    return '<div class="task-row" style="cursor:pointer" onclick="mfrOuvrir(\'' + esc(String(f.id)) + '\')">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px">'+esc(f.numero||'')+'</div>'+
+        '<div class="note" style="font-size:11px">'+mfrDate(f.date_emission)+'</div>'+
+      '</div>'+
+      '<div style="text-align:right;white-space:nowrap">'+
+        '<div style="font-weight:600;font-size:13px">'+mfrEur(f.total_ttc)+'</div>'+
+        '<div style="font-size:10.5px;color:'+coul+'">'+etat+'</div>'+
+      '</div></div>';
+  }).join('');
+
+  return '<div class="card"'+(retard.length?' style="border-left:3px solid var(--dang)"':'')+'>'+
+    '<div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">'+icone('receipt')+' Mes factures Taloche</h2></div>'+
+    '<p class="note" style="margin:0 0 10px;font-size:12px">'+
+      (retard.length
+        ? '<b style="color:var(--dang)">'+retard.length+' facture'+(retard.length>1?'s':'')+' en retard de paiement.</b>'
+        : (impayees.length
+            ? '<b>'+mfrEur(du)+'</b> à régler.'
+            : 'Tout est à jour, merci.'))+
+    '</p>'+
+    lignes+
+    (MFR_LISTE.length>6 ? '<p class="note" style="font-size:11px;margin-top:8px">'+(MFR_LISTE.length-6)+' facture(s) plus ancienne(s).</p>' : '')+
+    '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="mfrCharger(true)">Actualiser</button>'+
+  '</div>';
+}
+
+/* Le detail d'une facture recue, en fiche. */
+function mfrOuvrir(id){
+  const f = MFR_LISTE.filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!f){ toast("Facture introuvable"); return; }
+  const em = f.emetteur || {};
+  const avoir = f.type==='avoir';
+
+  const lignes = (Array.isArray(f.lignes)?f.lignes:[]).map(function(l){
+    if(l.titre) return '<div class="row"><div style="flex:1;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px">'+esc(l.designation||'')+'</div></div>';
+    return '<div class="row"><div style="flex:1;min-width:0">'+
+      '<div style="font-size:13px">'+esc(l.designation||'')+'</div>'+
+      '<div class="note" style="font-size:11px">'+(Number(l.quantite)||0)+(l.unite?' '+esc(l.unite):'')+' × '+mfrEur(l.prix_ht)+'</div>'+
+      '</div><div style="font-weight:600;white-space:nowrap">'+mfrEur(l.total_ht)+'</div></div>';
+  }).join('');
+
+  openModal(
+    '<div class="sheet-grip"></div>'+
+    '<h3 style="margin:0 0 2px">'+(avoir?'Avoir':'Facture')+' '+esc(f.numero||'')+'</h3>'+
+    '<p class="note" style="margin:0 0 12px;font-size:12px">De '+esc(em.raison_sociale||'Massilia Consulting')+
+      ' · émise le '+mfrDate(f.date_emission)+'</p>'+
+    (f.objet?'<p style="font-size:13px;margin:0 0 10px"><b>Objet :</b> '+esc(f.objet)+'</p>':'')+
+    lignes+
+    '<div class="row" style="margin-top:8px"><div style="flex:1">Total HT</div><div style="font-weight:600">'+mfrEur(f.total_ht)+'</div></div>'+
+    (Number(f.tva_taux)>0 ? '<div class="row"><div style="flex:1">TVA '+Number(f.tva_taux)+' %</div><div style="font-weight:600">'+mfrEur(f.total_tva)+'</div></div>' : '')+
+    '<div class="row"><div style="flex:1;font-weight:700">Total '+(Number(f.tva_taux)>0?'TTC':'')+'</div>'+
+      '<div style="font-weight:700;font-size:17px">'+mfrEur(f.total_ttc)+'</div></div>'+
+    (f.mention_tva?'<p class="note" style="font-size:11px;margin-top:6px">'+esc(f.mention_tva)+'</p>':'')+
+    (f.date_paiement
+      ? '<p class="note" style="margin-top:10px;color:var(--ok, #1a9e5c)"><b>Réglée le '+mfrDate(f.date_paiement)+'.</b></p>'
+      : (avoir ? '' :
+         '<p class="note" style="margin-top:10px'+(f.en_retard?';color:var(--dang)':'')+'">'+
+         (f.en_retard?'<b>Échéance dépassée depuis le '+mfrDate(f.date_echeance)+'.</b>'
+                     :'À régler avant le '+mfrDate(f.date_echeance)+'.')+'</p>'+
+         (em.iban?'<p class="note" style="font-size:11.5px">Par virement — IBAN '+esc(em.iban)+(em.bic?' · BIC '+esc(em.bic):'')+'</p>':'')))+
+    '<button class="btn primary" style="width:100%;margin-top:12px" onclick="mfrDocument(\'' + esc(String(f.id)) + '\')">Voir le document / PDF</button>'+
+    '<button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeModal()">Fermer</button>'
+  );
+}
+
+function mfrDocument(id){
+  const f = MFR_LISTE.filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!f){ toast("Facture introuvable"); return; }
+  closeModal();
+  mfOuvrirDocument(f);
+}
+
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v268 · 21/07";
+const APP_VERSION="v273 · 21/07";
 
 function devAllowed(user){ if(!user) return false; if(DEV_EMAIL) return (user.email||'').toLowerCase()===DEV_EMAIL.toLowerCase(); return true; }
 function devStart(){
@@ -4961,7 +6420,8 @@ function renderTeamApp(){
   ${pageTitleBar()}
   ${body}
   ${fabFor()}`;
-  if(ME && ME.role && !lsGet('onboarded_'+ME.role,0)){ lsSet('onboarded_'+ME.role,1); setTimeout(openHelp,450); }
+  try{ parcoursDemarrerSiBesoin(); }catch(_){ }
+  if(ME && ME.role && !parcoursActif() && !lsGet('onboarded_'+ME.role,0)){ lsSet('onboarded_'+ME.role,1); setTimeout(openHelp,450); }
 }
 function pageTitleBar(){
   if(CUR_CHANTIER && CHANTIERS[CUR_CHANTIER]) return ''; // le détail chantier a son propre en-tête
@@ -8021,7 +9481,7 @@ function hubBody(hub,tab){
     if(tab==='redaction') return viewRedaction();
   }
   if(hub==='params'){
-    if(tab==='entreprise') return abonnementCard()+bossEntrepriseConfig()+viewIdentite()+notifsCard()+supportCard();
+    if(tab==='entreprise') return abonnementCard()+mesFacturesCard()+bossEntrepriseConfig()+viewIdentite()+notifsCard()+supportCard();
     if(tab==='factu') return `<div class="card"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${icone('receipt')} Facturation</h2></div>
       <p class="note" style="margin:0 0 12px;font-size:12px">Chaque bloc s'ouvre séparément : tu ne remplis que ce dont tu as besoin.</p>
       <div class="task-row"><span style="flex:1">Facturation dans l'app</span><div class="row" style="gap:6px;flex:none"><button class="btn ${factuOn()?'primary':'ghost'} mini" onclick="setFactuOnDirect(true)">Activée</button><button class="btn ${!factuOn()?'primary':'ghost'} mini" onclick="setFactuOnDirect(false)">Désactivée</button></div></div>
@@ -9715,7 +11175,7 @@ function aideCard(){
   return `<div class="card"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${icone('help')} Aide & support</h2></div>
     ${pct<100?`<div class="member-row" style="cursor:pointer" onclick="openDemarrage()">
       <span style="width:30px;flex:0 0 30px;font-size:17px;text-align:center">🚀</span>
-      <span style="flex:1;min-width:0"><b style="font-size:13.5px;display:block">Guide de démarrage — ${pct}%</b><small class="note" style="font-size:11.5px">Il te reste ${demarrageEtapes().filter(x=>!x.ok).length} réglage(s) pour tirer le maximum de l'app.</small></span>
+      <span style="flex:1;min-width:0"><b style="font-size:13.5px;display:block">Ma configuration — ${pct}%</b><small class="note" style="font-size:11.5px">Il te reste ${demarrageEtapes().filter(x=>!x.ok).length} réglage(s) pour tirer le maximum de l'app.</small></span>
       <button class="btn primary mini" style="flex:none">Voir</button>
     </div>`:''}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="openAide()">${icone('help','16px')} Ouvrir le centre d'aide</button>

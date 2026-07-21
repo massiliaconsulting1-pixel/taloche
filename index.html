@@ -195,7 +195,11 @@ body[data-theme="blanc"]:not([data-accent]) .pill.acc{color:#64748b;border-color
 .pill.danger{color:var(--danger);border-color:rgba(255,77,98,.4)}
 
 /* ---- en-tête ---- */
-.top{position:sticky;top:0;z-index:50;
+/* --h-fantome : hauteur du bandeau orange du mode fantome, 0 sinon.
+   L'en-tete doit se coller SOUS lui, sinon il disparait derriere
+   des qu'on fait defiler. */
+:root{--h-fantome:0px}
+.top{position:sticky;top:var(--h-fantome,0px);z-index:50;
   background:var(--card);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);
   transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;
   border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
@@ -282,22 +286,37 @@ body[data-theme="blanc"]:not([data-accent]) .pill.acc{color:#64748b;border-color
   border:1px solid var(--line);color:var(--txt);padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;
   opacity:0;transition:.3s;z-index:300;box-shadow:var(--shadow);max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.install-banner{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:300;
-  background:rgba(15,25,42,.95);border:1px solid rgba(255,255,255,.14);border-radius:18px;box-shadow:0 24px 60px -18px rgba(0,0,0,.75);
+/* Le bandeau est pose PAR-DESSUS la page : il faut qu'il reste bas et
+   compact, sinon il recouvre les boutons du bas (le choix Clair/Sombre).
+   La hauteur reelle est aussi reservee en bas de page, voir maybeInstall. */
+.install-banner{position:fixed;left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:300;
+  background:rgba(15,25,42,.97);border:1px solid rgba(255,255,255,.14);border-radius:16px;box-shadow:0 24px 60px -18px rgba(0,0,0,.75);
   backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);
-  padding:16px 16px 14px;max-width:480px;margin:0 auto;transform:translateY(140%);opacity:0;transition:.35s}
+  padding:12px 13px 11px;max-width:480px;margin:0 auto;transform:translateY(140%);opacity:0;transition:.35s}
 .install-banner .ib-steps ol{margin:4px 0 0;padding-left:20px}
-.install-banner .ib-steps li{font-size:11.5px;line-height:1.4;color:var(--txt);margin:1px 0}
-.install-banner .ib-steps .plat{font-size:11.5px;font-weight:600;color:var(--txt);margin-top:5px}
+.install-banner .ib-steps li{font-size:11px;line-height:1.35;color:var(--txt);margin:0}
+.install-banner .ib-steps .plat{font-size:11px;font-weight:600;color:var(--txt);margin-top:3px}
 .install-banner.show{transform:translateY(0);opacity:1}
-.install-banner .ib-row{display:flex;gap:13px;align-items:flex-start}
-.install-banner .ib-logo{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:linear-gradient(135deg,var(--acc2),var(--acc));overflow:hidden}
+.install-banner .ib-row{display:flex;gap:10px;align-items:flex-start}
+.install-banner .ib-logo{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:24px;background:linear-gradient(135deg,var(--acc2),var(--acc));overflow:hidden}
 .install-banner .ib-logo img{width:100%;height:100%;object-fit:cover}
-.install-banner .ib-txt b{font-size:15px;display:block}
+.install-banner .ib-txt b{font-size:13.5px;display:block;line-height:1.3}
 .install-banner .ib-txt p{margin:4px 0 0;font-size:12.5px;color:var(--muted);line-height:1.45}
-.install-banner .ib-steps{color:var(--txt)!important;margin-top:7px!important}
+.install-banner .ib-steps{color:var(--txt)!important;margin-top:5px!important}
+/* l'espace reserve sous la page tant que le bandeau est la */
+body.avec-bandeau{padding-bottom:var(--h-bandeau,0px)}
 .install-banner .ib-close{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;font-weight:800;padding:4px}
-.install-banner .ib-ok{width:100%;margin-top:10px;padding:9px}
+.install-banner .ib-ok{width:100%;margin-top:8px;padding:8px}
+/* Sur un telephone peu haut (petits Android), le texte passe sur plus de
+   lignes et le bandeau reprend de la place : on resserre encore. */
+@media (max-height:700px){
+  .install-banner{padding:10px 12px 9px}
+  .install-banner .ib-logo{width:30px;height:30px;border-radius:9px}
+  .install-banner .ib-txt b{font-size:12.5px}
+  .install-banner .ib-steps li,
+  .install-banner .ib-steps .plat{font-size:10.5px;line-height:1.3}
+  .install-banner .ib-ok{margin-top:6px;padding:7px}
+}
 .modal{position:fixed;inset:0;z-index:200;background:rgba(4,8,16,.6);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center}
 .modal.hidden{display:none}
 .modal-card{background:var(--card);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:560px;
@@ -1763,16 +1782,27 @@ function paintBg(){ try{
   document.body.style.backgroundColor=bg;
 }catch(_){ } }
 let _iconCache={src:null,icon:null};
-function _iconWithBg(src,size,cb){
+function _iconWithBg(src,size,cb,opts){
+  /* opts.fond   : couleur de remplissage (defaut blanc)
+     opts.marge  : proportion de marge autour du logo (defaut 0.06)
+     Une icone deja finie, comme celle de Taloche, se passe des deux :
+     on la peint a fond perdu, sinon le telephone montre un liser
+     clair autour une fois l'icone posee sur l'ecran d'accueil. */
+  opts = opts || {};
+  const fond  = opts.fond || '#ffffff';
+  const marge = (typeof opts.marge === 'number') ? opts.marge : 0.06;
   try{
     const img=new Image();
     img.onload=function(){
       try{
         const cv=document.createElement('canvas'); cv.width=size; cv.height=size; const ctx=cv.getContext('2d');
-        ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
-        const pad=Math.round(size*0.06), max=size-pad*2;
+        ctx.fillStyle=fond; ctx.fillRect(0,0,size,size);
+        const pad=Math.round(size*marge), max=size-pad*2;
         let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; if(!w||!h){ w=h=max; }
-        const sc=Math.min(max/w,max/h), dw=Math.round(w*sc), dh=Math.round(h*sc);
+        /* sans marge, on remplit tout le carre (le plus grand cote gagne)
+           pour qu'aucune bande de fond ne reste visible sur les bords. */
+        const sc = (marge>0) ? Math.min(max/w,max/h) : Math.max(size/w,size/h);
+        const dw=Math.round(w*sc), dh=Math.round(h*sc);
         ctx.drawImage(img, Math.round((size-dw)/2), Math.round((size-dh)/2), dw, dh);
         cb(cv.toDataURL('image/png'));
       }catch(_){ cb(src); }
@@ -1810,7 +1840,14 @@ function applyAppIcons(){
     // Icône dédiée = utilisée telle quelle (pleine, sans bord ajouté). Sinon : logo centré sur fond blanc.
     if(customIcon){ apply(customIcon); return; }
     if(_iconCache.src===logo && _iconCache.icon){ apply(_iconCache.icon); return; }
-    _iconWithBg(logo,512,(icon)=>{ _iconCache={src:logo,icon:icon}; apply(icon); });
+    /* L'icone Taloche est deja un carre plein aux coins arrondis : lui
+       ajouter un fond blanc et 6 % de marge faisait apparaitre un bord
+       clair sur l'ecran d'accueil du telephone. On la peint donc sur son
+       propre orange, a fond perdu. Le logo d'un artisan, lui, reste sur
+       fond blanc avec sa marge : c'est le plus sur quand on ignore a quoi
+       il ressemble. */
+    const opts = (logo===TALOCHE_ICONE) ? {fond:'#f2671f', marge:0} : {};
+    _iconWithBg(logo,512,(icon)=>{ _iconCache={src:logo,icon:icon}; apply(icon); }, opts);
   }catch(e){}
 }
 function bigText(){ return lsGet('big_text',0)==1 || lsGet('big_text',0)===true; }
@@ -2515,20 +2552,48 @@ function fantomeSortir(){
 /* Bandeau permanent : impossible d'oublier ou l'on se trouve. */
 function fantomeBandeau(){
   let b = document.getElementById('fantome_bar');
-  if(!FANTOME){ if(b) b.remove(); document.body.style.paddingTop=''; return; }
+  if(!FANTOME){
+    if(b) b.remove();
+    document.body.style.paddingTop='';
+    try{ document.documentElement.style.setProperty('--h-fantome','0px'); }catch(_){ }
+    return;
+  }
   if(!b){
     b = document.createElement('div');
     b.id = 'fantome_bar';
+    /* L'application s'affiche sous la barre d'etat (viewport-fit=cover) :
+       sans cette marge haute, le bandeau passe dessous sur un telephone a
+       encoche et son bouton devient intouchable. */
     b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:9999;background:#f2671f;color:#fff;"
-      + "font-family:'Sora',sans-serif;font-size:12px;font-weight:700;padding:7px 10px;display:flex;"
-      + "align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.3)";
+      + "font-family:'Sora',sans-serif;font-size:12px;font-weight:700;display:flex;"
+      + "align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.3);"
+      + "padding:8px calc(10px + env(safe-area-inset-right)) 8px calc(10px + env(safe-area-inset-left));"
+      + "padding-top:calc(8px + env(safe-area-inset-top))";
     document.body.appendChild(b);
   }
   b.innerHTML = `<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
       Mode fantôme — espace de ${esc(FANTOME.nom||FANTOME.slug)}</span>
-    <button onclick="fantomeSortir()" style="background:#fff;color:#f2671f;border:0;border-radius:8px;
-      padding:4px 10px;font-family:'Sora',sans-serif;font-size:11px;font-weight:800;cursor:pointer">Sortir</button>`;
-  document.body.style.paddingTop = '32px';
+    <button onclick="fantomeSortir()" style="background:#fff;color:#f2671f;border:0;border-radius:9px;
+      padding:9px 16px;min-height:38px;font-family:'Sora',sans-serif;font-size:12.5px;font-weight:800;
+      cursor:pointer;flex:none">Sortir</button>`;
+
+  /* La hauteur depend de l'encoche du modele : on la mesure au lieu de
+     la figer a 32 px comme avant. */
+  const caler = function(){
+    try{
+      const h = Math.round(b.getBoundingClientRect().height);
+      if(h>0){
+        document.body.style.paddingTop = h + 'px';
+        document.documentElement.style.setProperty('--h-fantome', h + 'px');
+      }
+    }catch(_){ }
+  };
+  caler();
+  requestAnimationFrame(caler);
+  if(!b._suit){
+    b._suit = true;
+    try{ window.addEventListener('resize', caler); window.addEventListener('orientationchange', function(){ setTimeout(caler,180); }); }catch(_){ }
+  }
 }
 
 /* ====================== MA MARGE ======================
@@ -4856,7 +4921,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v274 · 21/07";
+const APP_VERSION="v276 · 21/07";
 
 function devAllowed(user){
   if(!user) return false;
@@ -14186,10 +14251,30 @@ function maybeInstall(){
         <div class="ib-txt"><b>Ajouter ${esc(coName())} à l'écran d'accueil</b>
         <div class="ib-steps">${steps}</div></div></div>
       <button class="btn primary ib-ok" onclick="dismissInstall()">J'ai compris 👍</button>`;
-    document.body.appendChild(el); requestAnimationFrame(()=>el.classList.add('show'));
+    document.body.appendChild(el);
+    requestAnimationFrame(()=>{
+      el.classList.add('show');
+      /* On reserve en bas de page exactement la hauteur du bandeau : sans
+         cela il se pose par-dessus les derniers boutons, qui deviennent
+         impossibles a toucher. */
+      try{
+        const h = el.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--h-bandeau', Math.round(h+18)+'px');
+        document.body.classList.add('avec-bandeau');
+      }catch(_){ }
+    });
   }catch(e){}
 }
-function dismissInstall(){ lsSet('batisuivi_install_dismissed',true); const el=document.getElementById('installBanner'); if(el){ el.classList.remove('show'); setTimeout(()=>el.remove(),300); } }
+function dismissInstall(){
+  lsSet('batisuivi_install_dismissed',true);
+  const el=document.getElementById('installBanner');
+  /* on rend l'espace reserve en meme temps qu'on retire le bandeau */
+  try{
+    document.body.classList.remove('avec-bandeau');
+    document.documentElement.style.setProperty('--h-bandeau','0px');
+  }catch(_){ }
+  if(el){ el.classList.remove('show'); setTimeout(()=>el.remove(),300); }
+}
 
 /* ============== GO ============== */
 boot();

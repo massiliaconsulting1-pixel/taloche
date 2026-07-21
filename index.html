@@ -39,6 +39,14 @@ const CONFIG = {
   HORAIRES: "Lun–Ven : 8h–18h"
 };
 
+/* Le compte autorise a ouvrir l'espace developpeur.
+   Ce n'est qu'un filtre d'AFFICHAGE : la vraie securite est cote
+   serveur, ou les fonctions admin / facturation / commercial
+   comparent l'utilisateur au secret ADMIN_EMAIL avant d'agir.
+   Laisser cette valeur vide ouvrirait l'ecran a tout compte connecte
+   — sans pouvoir en faire quoi que ce soit, mais autant l'eviter. */
+const DEV_EMAIL = "massiliaconsulting1@gmail.com";
+
 // Config Firebase (remplir pour le mode en ligne ; vide = mode local de test)
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyDk1TX8we5hc658aLbX6gRyXXJBPBAC2SY",
@@ -4848,9 +4856,18 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v273 · 21/07";
+const APP_VERSION="v274 · 21/07";
 
-function devAllowed(user){ if(!user) return false; if(DEV_EMAIL) return (user.email||'').toLowerCase()===DEV_EMAIL.toLowerCase(); return true; }
+function devAllowed(user){
+  if(!user) return false;
+  /* On lit la constante avec precaution : si elle venait a disparaitre
+     d'une future version, l'acces resterait possible au lieu de planter
+     silencieusement — c'est exactement ce qui est arrive en v273. */
+  let autorise = '';
+  try{ autorise = (typeof DEV_EMAIL !== 'undefined' && DEV_EMAIL) ? String(DEV_EMAIL) : ''; }catch(_){ autorise = ''; }
+  if(!autorise) return true;
+  return (user.email||'').trim().toLowerCase() === autorise.trim().toLowerCase();
+}
 function devStart(){
   if(!useFB){ SCREEN='dev'; DEV_ACCESS=false; render(); toTop(); return; } // mode local de test
   const u=AUTH.qui();
@@ -4871,11 +4888,25 @@ function devLoginPw(){
   const er=document.getElementById('dev_em_err');
   if(!em||!pw){ if(er){ er.style.display='block'; er.textContent="Entre l'email et le mot de passe."; } return; }
   if(er) er.style.display='none';
-  AUTH.connexion(em,pw).then(u=>devAfterLogin(u)).catch(e=>{ if(er){ er.style.display='block'; er.textContent=authMsg(e.code); } });
+  AUTH.connexion(em,pw).then(function(u){
+    try{ devAfterLogin(u); }
+    catch(err){
+      /* la connexion a reussi mais l'ouverture de l'ecran a echoue :
+         sans ce filet, la fenetre reste muette et on croit que le mot
+         de passe est faux. */
+      if(er){ er.style.display='block'; er.textContent="Connecté, mais l'espace dev n'a pas pu s'ouvrir : "+(err&&err.message||err); }
+    }
+  }).catch(e=>{ if(er){ er.style.display='block'; er.textContent=authMsg(e.code); } });
 }
 function devAfterLogin(user){
   if(!user) return;
-  if(!devAllowed(user)){ try{ AUTH.deconnexion(); }catch(_){} const er=document.getElementById('dev_em_err'); if(er){ er.style.display='block'; er.textContent="Ce compte n'est pas autorisé pour l'espace dev."; } return; }
+  if(!devAllowed(user)){
+    try{ AUTH.deconnexion(); }catch(_){}
+    const er=document.getElementById('dev_em_err');
+    if(er){ er.style.display='block'; er.textContent="Ce compte n'est pas autorisé pour l'espace dev."; }
+    else { toast("Ce compte n'est pas autorisé pour l'espace dev."); }
+    return;
+  }
   closeModal(); SCREEN='dev'; DEV_ACCESS=false; CUR_CHANTIER=null; render(); toTop();
   fantomeEtat().then(function(){ render(); });
 }

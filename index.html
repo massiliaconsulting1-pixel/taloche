@@ -3099,6 +3099,7 @@ function ficheOuvrir(slug){
   try{
     if(!slug){ toast("Client inconnu."); return; }
     FICHE_SLUG=slug; FICHE=null; FICHE_ETAT='chargement'; FICHE_ERR='';
+    try{ archReset(slug); }catch(_){ }
     SCREEN='fiche'; render(); toTop();
     ficheCharger();
   }catch(e){
@@ -3145,14 +3146,43 @@ function ficheIaNom(k){ return FICHE_IA_NOMS[k] || k || '—'; }
 /* Charger une demo chez ce client. On passe par le mode fantome : c'est
    la seule facon de reutiliser le jeu de demonstration existant (equipe,
    chantiers, devis, pointages) au lieu de le reecrire cote serveur. */
+/* Le choix du corps de metier, dans la fiche : un couvreur ne doit pas
+   voir des chantiers de plombier pendant sa demonstration. */
+function ficheMetier(k){ DEMO_SEL[k]=!DEMO_SEL[k]; render(); }
+function ficheMetiersHTML(){
+  const choisis = Object.keys(DEMO_SEL).filter(function(k){ return DEMO_SEL[k]; });
+  return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">'+
+    Object.keys(DEMO_TRADES).map(function(k){
+      return '<button class="btn '+(DEMO_SEL[k]?'primary':'ghost')+' mini" '+
+             'onclick="ficheMetier(\''+k+'\')">'+DEMO_TRADES[k].label+'</button>';
+    }).join('')+
+  '</div>'+
+  '<p class="note" style="font-size:11px;margin:0 0 8px">'+
+    (choisis.length
+      ? choisis.length+' métier'+(choisis.length>1?'s':'')+' · '+(choisis.length*4)+' chantiers seront créés'
+      : 'Aucun choix = tous les métiers, soit '+(Object.keys(DEMO_TRADES).length*4)+' chantiers. '+
+        'Choisis plutôt le métier du prospect.')+
+  '</p>';
+}
+
+function archReset(slug){
+  /* En changeant de client, l'ancien tableau d'archivage ne veut plus
+     rien dire : on le vide, sinon on lirait les mois du precedent. */
+  if(ARCH_SLUG !== slug){ ARCH_ETAT='vide'; ARCH=null; ARCH_ERR=''; ARCH_SLUG=slug||''; }
+}
+
 function ficheDemo(slug){
   const f = FICHE || {};
   const nom = f.nom || slug;
   const estDemo = /^demo/i.test(slug);
+  const choisis = Object.keys(DEMO_SEL).filter(function(k){ return DEMO_SEL[k]; });
+  const metiers = choisis.length
+    ? choisis.map(function(k){ return DEMO_TRADES[k].label; }).join(', ')
+    : 'tous les métiers';
   const msg = estDemo
-    ? "Charger un jeu de démonstration dans « "+nom+" » ?\n\nSes chantiers et son équipe actuels seront remplacés."
+    ? "Charger une démo « "+metiers+" » dans « "+nom+" » ?\n\nSes chantiers et son équipe actuels seront remplacés."
     : "⚠️ « "+nom+" » n'est PAS un espace de démonstration.\n\n"
-      +"Tu vas ouvrir son espace pour y charger des données fictives, "
+      +"Tu vas ouvrir son espace pour y charger des données fictives ("+metiers+"), "
       +"qui remplaceront ses vrais chantiers et sa vraie équipe.\n\nContinuer ?";
   if(!confirm(msg)) return;
 
@@ -3234,6 +3264,265 @@ function ficheSupprGo(){
   });
 }
 
+/* ==================== ARCHIVAGE DES DOCUMENTS ====================
+   Telecharger les devis et factures d'un client pour les conserver.
+
+   A SAVOIR : c'est une COPIE DE SECURITE. L'obligation legale de
+   conserver ses factures reste celle de l'artisan, et un disque dur
+   n'a pas la valeur probante d'un archivage normalise. Cette copie
+   protege en revanche des trois mois de retention de la plateforme. */
+
+let ARCH_ETAT='vide', ARCH=null, ARCH_ERR='', ARCH_SLUG='';
+
+function archivesApiCall(action, payload){
+  if(BACKEND!=='supabase') return Promise.reject(new Error("Indisponible sur cette base."));
+  const c = BS._sb.demarrer();
+  if(!c) return Promise.reject(new Error("Service indisponible."));
+  return c.functions.invoke('archives', {
+    body: Object.assign({action:action}, payload||{})
+  }).then(async function(r){
+    if(r.error){
+      let msg="Service indisponible.";
+      try{ const j=await r.error.context.json(); if(j&&j.erreur) msg=j.erreur; }catch(_){ }
+      throw new Error(msg);
+    }
+    if(r.data && r.data.erreur) throw new Error(r.data.erreur);
+    return r.data;
+  });
+}
+
+function archCharger(slug){
+  ARCH_SLUG=slug; ARCH_ETAT='chargement'; ARCH_ERR='';
+  if(SCREEN==='fiche') render();
+  archivesApiCall('etat',{ slug:slug }).then(function(r){
+    ARCH=r; ARCH_ETAT='pret';
+    if(SCREEN==='fiche') render();
+  }).catch(function(e){
+    ARCH_ERR=(e&&e.message)||"Indisponible."; ARCH_ETAT='erreur';
+    if(SCREEN==='fiche') render();
+  });
+}
+
+function archMoisLisible(m){
+  if(!m) return '';
+  const noms=['janvier','février','mars','avril','mai','juin','juillet',
+              'août','septembre','octobre','novembre','décembre'];
+  const p=String(m).split('-');
+  return (noms[Number(p[1])-1]||'') + ' ' + p[0];
+}
+
+/* Un document remis en page, tel qu'on le presenterait. */
+function archDocHTML(d, ent){
+  const lignes = Array.isArray(d.lignes) ? d.lignes : [];
+  let ht=0;
+  const corps = lignes.map(function(l){
+    if(l && l.titre) return '<tr><td colspan="4" class="sec">'+esc(l.designation||l.nom||'')+'</td></tr>';
+    const q=Number(l&&(l.qte||l.quantite))||0;
+    const pu=Number(l&&(l.pu||l.prix))||0;
+    const t=Math.round(q*pu*100)/100; ht+=t;
+    return '<tr><td>'+esc((l&&(l.designation||l.nom))||'')+'</td>'+
+           '<td class="n">'+(q||'')+'</td>'+
+           '<td class="n">'+(pu?pu.toFixed(2).replace('.',',')+' €':'')+'</td>'+
+           '<td class="n">'+t.toFixed(2).replace('.',',')+' €</td></tr>';
+  }).join('');
+  ht=Math.round(ht*100)/100;
+  const cfg = ent.config || {};
+  const tva = Number(cfg.tvaRate!==undefined?cfg.tvaRate:20)||0;
+  const mtva = Math.round(ht*tva)/100;
+  const ttc = Math.round((ht+mtva)*100)/100;
+  const etiquette = d.type==='facture' ? 'FACTURE' : (d.type==='avoir' ? 'AVOIR' : 'DEVIS');
+  const client = d.client_societe || d.client_nom || (d.chantier && d.chantier.client_nom) || '';
+
+  return '<article class="doc">'+
+    '<header><div><h2>'+etiquette+' '+esc(d.numero||'')+'</h2>'+
+      '<p>'+esc(ent.nom||'')+'</p></div>'+
+      '<div class="r"><p>'+(d.emis_le?new Date(d.emis_le).toLocaleDateString('fr-FR'):'—')+'</p>'+
+      (d.paye?'<p class="ok">Payée le '+(d.paye_le?new Date(d.paye_le).toLocaleDateString('fr-FR'):'—')+'</p>':'')+
+      (d.annule?'<p class="ko">Annulé</p>':'')+
+      (d.signe_le?'<p class="ok">Signé le '+new Date(d.signe_le).toLocaleDateString('fr-FR')+'</p>':'')+
+      '</div></header>'+
+    '<p class="cli"><b>Client :</b> '+esc(client||'—')+
+      (d.client_siren?' · SIREN '+esc(d.client_siren):'')+
+      (d.chantier?' · Chantier : '+esc(d.chantier.nom||''):'')+'</p>'+
+    (d.adresse?'<p class="cli">'+esc(d.adresse)+'</p>':'')+
+    '<table><thead><tr><th>Désignation</th><th class="n">Qté</th><th class="n">P.U. HT</th><th class="n">Total HT</th></tr></thead>'+
+      '<tbody>'+(corps||'<tr><td colspan="4">—</td></tr>')+'</tbody></table>'+
+    '<table class="tot"><tr><td>Total HT</td><td class="n">'+ht.toFixed(2).replace('.',',')+' €</td></tr>'+
+      '<tr><td>TVA '+tva+' %</td><td class="n">'+mtva.toFixed(2).replace('.',',')+' €</td></tr>'+
+      '<tr class="g"><td>Total TTC</td><td class="n">'+ttc.toFixed(2).replace('.',',')+' €</td></tr></table>'+
+  '</article>';
+}
+
+function archFichierHTML(r, titre){
+  const ent = r.entreprise || {};
+  const docs = r.documents || [];
+  const style = '<style>'+
+    'body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#111;margin:0;padding:24px;font-size:13px}'+
+    'h1{font-size:20px;margin:0 0 4px}.sous{color:#666;font-size:12px;margin:0 0 18px}'+
+    '.avert{border-left:3px solid #f2671f;background:#fff6f0;padding:10px 12px;font-size:11.5px;color:#333;margin:0 0 18px}'+
+    '.doc{border:1px solid #ddd;border-radius:8px;padding:16px;margin:0 0 14px;page-break-inside:avoid}'+
+    '.doc header{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #eee;padding-bottom:8px;margin-bottom:8px}'+
+    '.doc h2{font-size:15px;margin:0}.doc p{margin:2px 0;font-size:12px;color:#555}'+
+    '.doc .r{text-align:right}.ok{color:#128a4a}.ko{color:#b3261e}'+
+    '.cli{font-size:12px;margin:4px 0}'+
+    'table{width:100%;border-collapse:collapse;margin-top:8px}'+
+    'th,td{padding:5px 6px;border-bottom:1px solid #eee;text-align:left;font-size:12px}'+
+    'th{background:#fafafa;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#666}'+
+    '.n{text-align:right}.sec{background:#f6f6f6;font-weight:700}'+
+    '.tot{width:auto;margin-left:auto;margin-top:6px}.tot td{border:0;padding:3px 6px}'+
+    '.tot .g td{font-weight:800;border-top:2px solid #333;font-size:13px}'+
+    '@media print{body{padding:0}.doc{border-color:#999}}'+
+  '</style>';
+  return '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">'+
+    '<title>'+esc(titre)+'</title>'+style+'</head><body>'+
+    '<h1>'+esc(ent.nom||ent.slug||'')+'</h1>'+
+    '<p class="sous">'+esc(titre)+' · '+docs.length+' document'+(docs.length>1?'s':'')+
+      ' · copie établie le '+new Date().toLocaleDateString('fr-FR')+'</p>'+
+    '<div class="avert"><b>Copie de sauvegarde.</b> Ce fichier est une copie des documents '+
+      'établis dans Taloche par '+esc(ent.nom||'')+'. La conservation légale de ces pièces '+
+      'incombe à l\'entreprise émettrice. Ce document n\'a pas valeur d\'archivage probant.</div>'+
+    (docs.length ? docs.map(function(d){ return archDocHTML(d, ent); }).join('')
+                 : '<p>Aucun document sur cette période.</p>')+
+  '</body></html>';
+}
+
+/* Le tableau, pour la comptabilite. Point-virgule et BOM : Excel
+   francais ouvre correctement, sans passer par l'assistant d'import. */
+function archFichierCSV(r){
+  const ent=r.entreprise||{};
+  const lignes=[['Type','Numero','Date','Client','SIREN','Chantier','Total HT','Paye','Paye le','Annule'].join(';')];
+  (r.documents||[]).forEach(function(d){
+    let ht=0;
+    (Array.isArray(d.lignes)?d.lignes:[]).forEach(function(l){
+      if(l&&l.titre) return;
+      ht += (Number(l&&(l.qte||l.quantite))||0) * (Number(l&&(l.pu||l.prix))||0);
+    });
+    const net=function(v){ return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'; };
+    lignes.push([
+      net(d.type||''), net(d.numero||''),
+      net(d.emis_le?new Date(d.emis_le).toLocaleDateString('fr-FR'):''),
+      net(d.client_societe||d.client_nom||(d.chantier&&d.chantier.client_nom)||''),
+      net(d.client_siren||''), net(d.chantier?d.chantier.nom:''),
+      net((Math.round(ht*100)/100).toFixed(2).replace('.',',')),
+      net(d.paye?'oui':'non'),
+      net(d.paye_le?new Date(d.paye_le).toLocaleDateString('fr-FR'):''),
+      net(d.annule?'oui':'non')
+    ].join(';'));
+  });
+  return '\ufeff'+lignes.join('\r\n');
+}
+
+function archTelecharger(contenu, nom, type){
+  try{
+    const b=new Blob([contenu],{type:type||'text/html;charset=utf-8'});
+    const u=URL.createObjectURL(b);
+    const a=document.createElement('a');
+    a.href=u; a.download=nom;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ try{ document.body.removeChild(a); URL.revokeObjectURL(u); }catch(_){ } }, 900);
+    return true;
+  }catch(e){ toast("Téléchargement impossible : "+((e&&e.message)||e)); return false; }
+}
+
+function archExporter(slug, mois){
+  const quoi = mois ? archMoisLisible(mois) : 'tout l\'historique';
+  toast("Préparation de "+quoi+"…");
+  archivesApiCall('contenu',{ slug:slug, mois:mois||null }).then(function(r){
+    const docs=r.documents||[];
+    if(!docs.length){ toast("Aucun document sur cette période."); return; }
+    const ent=r.entreprise||{};
+    const base=(ent.slug||slug)+'-'+(mois||'tout');
+    const titre=mois ? archMoisLisible(mois) : 'Historique complet';
+    archTelecharger(archFichierHTML(r,titre), base+'.html', 'text/html;charset=utf-8');
+    setTimeout(function(){
+      archTelecharger(archFichierCSV(r), base+'.csv', 'text/csv;charset=utf-8');
+    }, 700);
+    if(mois){
+      archivesApiCall('marquer',{ slug:slug, mois:mois, nb:docs.length })
+        .then(function(){ archCharger(slug); })
+        .catch(function(){ /* le fichier est deja telecharge : on n'alarme pas */ });
+    }
+    toast(docs.length+" document(s) téléchargé(s) ✅");
+  }).catch(function(e){ toast((e&&e.message)||"Export impossible."); });
+}
+
+function archToutExporter(slug){
+  if(!ARCH || !ARCH.mois || !ARCH.mois.length){ toast("Rien à exporter."); return; }
+  if(!confirm("Télécharger l'historique complet ?\n\n"+ARCH.total+" document(s), en deux fichiers : "+
+              "un HTML lisible et imprimable, un CSV pour ta comptabilité.")) return;
+  archExporter(slug, null);
+}
+
+function archCarte(slug){
+  if(ARCH_ETAT==='vide'){ setTimeout(function(){ archCharger(slug); }, 0); }
+
+  if(ARCH_ETAT==='vide' || ARCH_ETAT==='chargement'){
+    return '<div class="card"><div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">Archivage des documents</h2></div>'+
+      '<p class="note" style="margin:0">Lecture…</p></div>';
+  }
+  if(ARCH_ETAT==='erreur'){
+    return '<div class="card" style="border-color:var(--warn)">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Archivage des documents</h2></div>'+
+      '<p class="note" style="color:var(--danger)">'+esc(ARCH_ERR)+'</p>'+
+      '<button class="btn ghost" style="width:100%;margin-top:8px" onclick="archCharger(\''+esc(slug)+'\')">Réessayer</button></div>';
+  }
+
+  const a=ARCH||{};
+  const mois=a.mois||[];
+  if(!mois.length){
+    return '<div class="card"><div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">Archivage des documents</h2></div>'+
+      '<p class="note" style="margin:0">Ce client n\'a encore aucun devis ni facture.</p></div>';
+  }
+
+  const reste=(a.jamais_exportes||0)+(a.a_refaire||0);
+
+  return '<div class="card"'+(reste?' style="border-color:var(--warn)"':'')+'>'+
+    '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Archivage des documents</h2></div>'+
+    '<div class="kpis" style="margin-bottom:8px">'+
+      '<div class="kpi acc"><div class="big">'+(a.total||0)+'</div><div class="lbl">Documents</div></div>'+
+      '<div class="kpi"><div class="big">'+mois.length+'</div><div class="lbl">Mois</div></div>'+
+      '<div class="kpi'+(reste?'':' acc')+'"><div class="big" style="color:'+(reste?'var(--warn)':'var(--ok, #1a9e5c)')+'">'+
+        reste+'</div><div class="lbl">À faire</div></div>'+
+    '</div>'+
+    (reste
+      ? '<p class="note" style="margin:0 0 8px;font-size:11.5px;color:var(--warn)"><b>'+reste+' mois</b> '+
+        'n\''+(reste>1?'ont':'a')+' pas encore été téléchargé'+(reste>1?'s':'')+', ou '+(reste>1?'ont':'a')+' changé depuis.</p>'
+      : '<p class="note" style="margin:0 0 8px;font-size:11.5px;color:var(--ok, #1a9e5c)">Tout est à jour.</p>')+
+    (a.sans_date ? '<p class="note" style="font-size:11px;margin:0 0 8px">'+a.sans_date+
+      ' brouillon(s) sans date, rangé(s) à leur date de création.</p>' : '')+
+
+    '<button class="btn primary" style="width:100%;margin-bottom:8px" onclick="archToutExporter(\''+esc(slug)+'\')">'+
+      'Tout télécharger ('+(a.total||0)+' documents)</button>'+
+
+    '<div style="max-height:290px;overflow:auto;margin-top:4px">'+
+      mois.map(function(m){
+        const fait=!!m.exporte_le, refaire=!!m.a_refaire;
+        const coul = refaire ? 'var(--warn)' : (fait ? 'var(--ok, #1a9e5c)' : 'var(--mut)');
+        const etat = refaire ? 'à refaire' : (fait ? 'téléchargé' : 'jamais');
+        return '<div class="task-row">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:600;font-size:13px">'+esc(archMoisLisible(m.mois))+'</div>'+
+            '<div class="note" style="font-size:11px">'+
+              m.factures+' facture'+(m.factures>1?'s':'')+' · '+m.devis+' devis'+
+              (m.avoirs?' · '+m.avoirs+' avoir'+(m.avoirs>1?'s':''):'')+
+              ' — <span style="color:'+coul+'">'+etat+'</span>'+
+            '</div>'+
+          '</div>'+
+          '<button class="btn '+(fait&&!refaire?'ghost':'primary')+' mini" style="flex:none" '+
+            'onclick="archExporter(\''+esc(slug)+'\',\''+esc(m.mois)+'\')">'+
+            (fait&&!refaire?'Refaire':'Télécharger')+'</button>'+
+        '</div>';
+      }).join('')+
+    '</div>'+
+
+    '<p class="note" style="font-size:11px;margin-top:10px;border-top:1px solid var(--line);padding-top:8px">'+
+      'Deux fichiers par téléchargement : un <b>HTML</b> lisible et imprimable, un <b>CSV</b> pour la comptabilité. '+
+      'C\'est une copie de sauvegarde — la conservation légale de ses factures reste à la charge de l\'artisan.</p>'+
+  '</div>';
+}
+
 function renderFiche(){
   let corps='';
 
@@ -3306,8 +3595,11 @@ function renderFiche(){
         Remplit son espace d'une équipe, de chantiers, de devis et d'heures pointées.
         ${/^demo/i.test(f.slug)?'Espace de démonstration : chargement direct.'
           :'<b style="color:var(--warn)">Ce n\'est pas un espace de démo</b> : ses vraies données seraient remplacées.'}</p>
+      ${ficheMetiersHTML()}
       <button class="btn ghost" style="width:100%" onclick="ficheDemo('${esc(f.slug)}')">Charger un jeu de démonstration</button>
     </div>
+
+    ${archCarte(f.slug)}
 
     <div class="card" style="border-color:var(--danger)">
       <div class="section-title" style="margin-top:0"><h2 style="font-size:15px;color:var(--danger)">Zone sensible</h2></div>
@@ -5036,7 +5328,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v277 · 21/07";
+const APP_VERSION="v278 · 21/07";
 
 function devAllowed(user){
   if(!user) return false;
@@ -5119,12 +5411,8 @@ function renderDev(){
 
     <div class="card">
       <div class="section-title" style="margin-top:0"><h2 style="font-size:15px"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 9h5M2 15h5M17 9h5M17 15h5"/></svg> Démo & données</h2></div>
-      <p class="note">Choisis un ou plusieurs corps de métier, puis charge une démo réaliste adaptée.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">
-        ${Object.keys(DEMO_TRADES).map(k=>`<button class="btn ${DEMO_SEL[k]?'primary':'ghost'} mini" onclick="devToggleTrade('${k}')">${icone(TRADEIC[k]||'tool')} ${DEMO_TRADES[k].label}</button>`).join('')}
-      </div>
-      <p class="note" style="font-size:11px">Aucune sélection = tous les métiers. Chaque métier ajoute 4 chantiers à des étapes différentes (tâches, matériaux, photos, messages, comptes-rendus).</p>
-      <button class="btn primary" style="width:100%;margin-top:10px" onclick="devLoadDemo()">Charger la démo</button>
+      <p class="note">Une copie de tes réglages et de tes données, à garder de côté avant toute manipulation.</p>
+      <p class="note" style="font-size:11px">Les démos se chargent désormais depuis la fiche de chaque client, où l'on choisit aussi le corps de métier.</p>
       <button class="btn ghost" style="width:100%;margin-top:10px" onclick="exportData()"><svg class="lic" viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg> Exporter / sauvegarder les données</button>
     </div>
 
@@ -5197,7 +5485,12 @@ function devSaveConfig(){
 }
 function devUploadLogo(input){ const f=input.files&&input.files[0]; if(!f) return;
   const r=new FileReader(); r.onload=e=>startCrop(e.target.result,'logo'); r.readAsDataURL(f); }
-function devRemoveLogo(){ CONFIG_DB.logo=''; saveConfigDB(); toast("Logo retiré"); cfgRerender(); }
+function devRemoveLogo(){
+  CONFIG_DB.logo=''; saveConfigDB();
+  _iconCache={src:null,icon:null};
+  try{ applyAppIcons(); }catch(_){ }
+  toast("Logo retiré"); cfgRerender();
+}
 
 function demoImg(txt,bg){ return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="${bg}"/><text x="200" y="158" font-size="26" fill="#ffffff" font-family="Arial,sans-serif" text-anchor="middle">${txt}</text></svg>`); }
 const DEMO_TRADES={
@@ -9535,6 +9828,11 @@ function viewDashEquipe(){
 /* ====================== ESPACE FACTURATION (mini-app plein écran) ====================== */
 let FACTU_OPEN=false, FTAB='resume';
 let FDEVIS_SUB='now', FFACT_TYPE='pro', FFACT_SUB='now';
+/* 'emises' = ce que l'artisan envoie a ses clients.
+   'recues' = ce qu'il recoit : aujourd'hui ses factures Taloche,
+   demain celles de n'importe quel fournisseur via BCSolutions. */
+let FFACT_SENS='emises';
+function setFFactSens(v){ FFACT_SENS=v; render(); }
 function setFDevisSub(s){ FDEVIS_SUB=s; render(); }
 function setFFactType(t){ FFACT_TYPE=t; render(); }
 function setFFactSub(s){ FFACT_SUB=s; render(); }
@@ -10082,7 +10380,9 @@ function factuFactures(){
   const byType=facts.filter(d=> type==='pro'? isPro(d) : !isPro(d));
   const rows = sub==='impayees' ? byType.filter(d=>d.type==='facture' && !d.paye && !d.annulee).sort((a,b)=>factureRetard(b)-factureRetard(a)) : (sub==='now' ? byType.filter(docEnCours) : byType.filter(d=>!docEnCours(d)));
   const nbRetard = rows.filter(d=>factureRetard(d)>0).length;
+  if(FFACT_SENS==='recues') return factuRecues();
   let h=`<div class="card"><div class="section-title" style="margin-top:0"><h2 style="font-size:15px">${icone('receipt')} Factures</h2></div>
+    <div class="row" style="gap:6px;margin-bottom:8px"><button class="btn primary" style="flex:1" onclick="setFFactSens('emises')">Émises</button><button class="btn ghost" style="flex:1" onclick="setFFactSens('recues')">Reçues${mfrBadge()}</button></div>
     <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="factuNouveau('facture')">+ Nouvelle facture</button>
     <div class="row" style="gap:6px"><button class="btn ${type==='pro'?'primary':'ghost'}" style="flex:1" onclick="setFFactType('pro')">Pros</button><button class="btn ${type==='part'?'primary':'ghost'}" style="flex:1" onclick="setFFactType('part')">Particuliers</button></div>
     <div class="row" style="gap:6px;margin-top:8px"><button class="btn ${sub==='now'?'primary':'ghost'}" style="flex:1" onclick="setFFactSub('now')">En cours</button><button class="btn ${sub==='past'?'primary':'ghost'}" style="flex:1" onclick="setFFactSub('past')">Passées</button><button class="btn ${sub==='impayees'?'primary':'ghost'}" style="flex:1" onclick="setFFactSub('impayees')">Impayées</button></div>`;
@@ -10094,6 +10394,61 @@ function factuFactures(){
   h+=`</div>`;
   return h;
 }
+/* Les factures que l'artisan RECOIT. Aujourd'hui les miennes ; le jour
+   ou la passerelle BCSolutions sera ouverte, celles de tous ses
+   fournisseurs arriveront au meme endroit. */
+function mfrBadge(){
+  try{
+    if(MFR_ETAT!=='pret' || !Array.isArray(MFR_LISTE)) return '';
+    const n = MFR_LISTE.filter(function(f){ return f.statut==='emise'; }).length;
+    return n ? ' <span style="display:inline-block;min-width:17px;padding:0 5px;border-radius:9px;background:var(--danger);color:#fff;font-size:10px;font-weight:800">'+n+'</span>' : '';
+  }catch(_){ return ''; }
+}
+
+function factuRecues(){
+  if(MFR_ETAT==='vide'){ setTimeout(function(){ mfrCharger(); }, 0); }
+
+  let liste='';
+  if(MFR_ETAT==='vide' || MFR_ETAT==='chargement'){
+    liste='<p class="note" style="margin:10px 0 0">Lecture…</p>';
+  } else if(MFR_ETAT==='erreur'){
+    liste='<p class="note" style="margin:10px 0 0;color:var(--danger)">'+esc(MFR_ERR||'Indisponible.')+'</p>'+
+      '<button class="btn ghost" style="width:100%;margin-top:8px" onclick="mfrCharger(true)">Réessayer</button>';
+  } else if(!MFR_LISTE || !MFR_LISTE.length){
+    liste='<p class="note" style="margin:10px 0 0">Aucune facture reçue pour le moment.</p>';
+  } else {
+    liste='<div style="margin-top:10px">'+MFR_LISTE.map(function(f){
+      const paye=!!f.date_paiement;
+      const retard=(!paye && f.date_echeance && String(f.date_echeance).slice(0,10) < new Date().toISOString().slice(0,10));
+      const coul=paye?'var(--ok, #1a9e5c)':(retard?'var(--danger)':'var(--warn)');
+      const etat=paye?'Payée':(retard?'En retard':'À régler');
+      return '<div class="task-row" style="cursor:pointer" onclick="mfrOuvrir(\''+esc(String(f.id))+'\')">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:600;font-size:13.5px">'+esc(f.numero||'—')+
+            (f.type==='avoir'?' <span class="note" style="font-size:11px">(avoir)</span>':'')+'</div>'+
+          '<div class="note" style="font-size:11px">Taloche'+
+            (f.date_emission?' · '+new Date(f.date_emission).toLocaleDateString('fr-FR'):'')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right;white-space:nowrap">'+
+          '<div style="font-weight:700;font-size:13.5px">'+Number(f.total_ttc||0).toFixed(2).replace('.',',')+' €</div>'+
+          '<div style="font-size:11px;color:'+coul+'">'+etat+'</div>'+
+        '</div>'+
+      '</div>';
+    }).join('')+'</div>';
+  }
+
+  return '<div class="card"><div class="section-title" style="margin-top:0">'+
+      '<h2 style="font-size:15px">'+icone('receipt')+' Factures</h2></div>'+
+    '<div class="row" style="gap:6px;margin-bottom:8px">'+
+      '<button class="btn ghost" style="flex:1" onclick="setFFactSens(\'emises\')">Émises</button>'+
+      '<button class="btn primary" style="flex:1" onclick="setFFactSens(\'recues\')">Reçues</button></div>'+
+    '<p class="note" style="margin:0 0 4px;font-size:11.5px">Les factures que tu reçois. '+
+      'Aujourd\'hui celles de ton abonnement Taloche ; bientôt celles de tous tes fournisseurs, '+
+      'directement par facture électronique.</p>'+
+    liste+
+  '</div>';
+}
+
 function statBar(pct){ return `<span style="flex:1;display:block;height:9px;border-radius:6px;background:var(--card2);overflow:hidden"><span style="display:block;height:100%;width:${Math.max(0,Math.min(100,pct))}%;background:var(--acc)"></span></span>`; }
 function factuStats(){
   const docs=factuAllDocs();
@@ -12901,7 +13256,12 @@ function saveCroppedLogo(){
   const cv=document.createElement('canvas'); cv.width=OUT; cv.height=OUT; const ctx=cv.getContext('2d');
   ctx.drawImage(_crop.img, _crop.x*R, _crop.y*R, _crop.img.naturalWidth*_crop.scale*R, _crop.img.naturalHeight*_crop.scale*R);
   CONFIG_DB.logo=cv.toDataURL('image/png'); saveConfigDB();
-  _crop=null; closeModal(); toast("Logo mis à jour ✅"); if(SCREEN==='dev') renderDev(); else render();
+  /* L'icone de l'ecran d'accueil du telephone est fabriquee a partir du
+     logo : sans ces deux lignes elle gardait l'ancienne image jusqu'au
+     prochain rechargement complet de l'application. */
+  _iconCache={src:null,icon:null};
+  try{ applyAppIcons(); }catch(_){ }
+  _crop=null; closeModal(); toast("Logo mis à jour ✅ — l'icône du téléphone suit"); if(SCREEN==='dev') renderDev(); else render();
 }
 function saveCroppedIcon(){
   if(!_crop) return; const OUT=512, R=OUT/240;

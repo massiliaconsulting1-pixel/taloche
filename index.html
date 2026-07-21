@@ -2084,6 +2084,7 @@ function render(){
   if(SCREEN==='marge'){ navEl.classList.add('hidden'); return renderMarge(); }
   if(SCREEN==='support'){ navEl.classList.add('hidden'); return renderSupport(); }
   if(SCREEN==='journal'){ navEl.classList.add('hidden'); return renderJournal(); }
+  if(SCREEN==='mafactu'){ navEl.classList.add('hidden'); return renderMaFacturation(); }
   if(SCREEN==='annonce'){ navEl.classList.add('hidden'); return renderAnnonce(); }
   if(SCREEN==='client'){ navEl.classList.add('hidden'); return renderClient(); }
   if(SCREEN==='team'){
@@ -3108,6 +3109,7 @@ function renderParc(){
       <button class="btn ghost" style="flex:1" onclick="margeOuvrir()">Ma marge</button>
       <button class="btn ghost" style="flex:1" onclick="journalOuvrir()">Journal</button>
     </div>
+    <button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="mfOuvrir()">Ma facturation</button>
     <button class="btn ghost" style="width:100%;margin-bottom:12px" onclick="annonceOuvrir()">Annonce à tout le parc</button>
     ${corps}
     <button class="btn ghost" style="width:100%;margin-top:10px" onclick="parcCharger()">Rafraîchir</button>
@@ -3115,9 +3117,279 @@ function renderParc(){
   </div>`;
 }
 
+/* ====================== MA FACTURATION — RÉGLAGES ======================
+   Chantier 1, lot A. Mes coordonnées, l'interrupteur TVA, ma numérotation
+   et mon catalogue de prestations.
+
+   RÈGLE DE FOND : rien n'est gravé dans l'application. Tous les tarifs
+   vivent dans la base, dans un catalogue que je modifie ici. Le 590 €, le
+   90 € et le 180 € ne sont que des valeurs de départ, exactement comme
+   l'artisan gère ses propres ouvrages de son côté.
+
+   Ces données ne sont jamais lues en direct : tout passe par la fonction
+   serveur « facturation », qui vérifie que je suis bien l'éditeur. */
+let MF=null, MF_CAT=[], MF_ETAT='vide', MF_ERR='', MF_PREST=null;
+
+function mfOuvrir(){ SCREEN='mafactu'; MF=null; MF_CAT=[]; MF_PREST=null; MF_ETAT='chargement'; MF_ERR=''; render(); toTop(); mfCharger(); }
+function mfRetour(){ SCREEN='parc'; MF_PREST=null; render(); toTop(); }
+
+function mfCharger(){
+  MF_ETAT='chargement'; MF_ERR='';
+  if(SCREEN==='mafactu') renderMaFacturation();
+  facturationApiCall('reglages',{}).then(function(r){
+    MF = (r && r.parametres) || null;
+    MF_CAT = (r && r.catalogue) || [];
+    MF_ETAT='pret';
+    if(SCREEN==='mafactu') renderMaFacturation();
+  }).catch(function(e){
+    MF_ERR = (e && e.message) ? e.message : "Service indisponible.";
+    MF_ETAT='erreur';
+    if(SCREEN==='mafactu') renderMaFacturation();
+  });
+}
+
+function mfEur(n){ return (Number(n)||0).toFixed(2).replace('.',',')+' €'; }
+function mfVal(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
+function mfCoche(id){ const el=document.getElementById(id); return el?!!el.checked:false; }
+
+/* Aperçu du prochain numéro, calculé exactement comme le serveur.
+   Sert de garde-fou visuel : je vois ce que je vais émettre avant de l'émettre. */
+function mfApercuNumero(){
+  const p = MF || {};
+  const suivant = (Number(p.num_dernier)||0) + 1;
+  const lg = Math.max(Number(p.num_longueur)||6, 1);
+  let corps = String(suivant);
+  while(corps.length < lg) corps = '0' + corps;
+  if(p.num_avec_date !== false){
+    const d = new Date();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const jj = String(d.getDate()).padStart(2,'0');
+    corps = d.getFullYear()+'-'+mm+'-'+jj+'-'+corps;
+  }
+  if(p.num_prefixe) corps = p.num_prefixe + corps;
+  return corps;
+}
+
+function mfNumeroRafraichir(){
+  if(!MF) return;
+  MF.num_dernier   = Number(mfVal('fa_num_dernier'))||0;
+  MF.num_longueur  = Number(mfVal('fa_num_lg'))||6;
+  MF.num_prefixe   = mfVal('fa_num_prefixe');
+  MF.num_avec_date = mfCoche('fa_num_date');
+  const el = document.getElementById('fa_apercu');
+  if(el) el.textContent = mfApercuNumero();
+}
+
+function mfEnregistrer(){
+  if(!MF) return;
+  const valeurs = {
+    raison_sociale: mfVal('fa_rs'),
+    forme_juridique: mfVal('fa_forme'),
+    siren: mfVal('fa_siren'),
+    ape: mfVal('fa_ape'),
+    adresse: mfVal('fa_adr'),
+    code_postal: mfVal('fa_cp'),
+    ville: mfVal('fa_ville'),
+    email: mfVal('fa_email'),
+    telephone: mfVal('fa_tel'),
+    iban: mfVal('fa_iban'),
+    bic: mfVal('fa_bic'),
+    tva_assujetti: mfCoche('fa_tva'),
+    tva_taux: Number(mfVal('fa_tva_taux'))||0,
+    mention_tva: mfVal('fa_tva_mention'),
+    num_prefixe: mfVal('fa_num_prefixe'),
+    num_avec_date: mfCoche('fa_num_date'),
+    num_longueur: Number(mfVal('fa_num_lg'))||6,
+    num_dernier: Number(mfVal('fa_num_dernier'))||0,
+    num_partage_devis: mfCoche('fa_num_devis'),
+    delai_paiement_jours: Number(mfVal('fa_delai'))||30,
+    penalites_texte: mfVal('fa_penalites'),
+    pied_page: mfVal('fa_pied')
+  };
+  toast("Enregistrement…");
+  facturationApiCall('reglagesMaj',{ valeurs: valeurs }).then(function(){
+    toast("Réglages enregistrés ✅");
+    mfCharger();
+  }).catch(function(e){ toast((e&&e.message)||"Enregistrement refusé"); });
+}
+
+/* ---- le catalogue ---- */
+function mfPrestNouvelle(){
+  MF_PREST = { id:null, libelle:'', detail:'', prix_ht:0, unite:'forfait',
+                  categorie:'autre', formule:'', rythme:'', ordre:(MF_CAT.length+1), actif:true };
+  renderMaFacturation(); toTop();
+}
+function mfPrestEditer(id){
+  const p = MF_CAT.filter(function(x){ return String(x.id)===String(id); })[0];
+  if(!p) return;
+  MF_PREST = Object.assign({}, p);
+  renderMaFacturation(); toTop();
+}
+function mfPrestAnnuler(){ MF_PREST=null; renderMaFacturation(); toTop(); }
+
+function mfPrestEnregistrer(){
+  if(!MF_PREST) return;
+  const libelle = mfVal('fp_libelle');
+  if(!libelle){ toast("Il faut un libellé."); return; }
+  const valeurs = {
+    libelle: libelle,
+    detail: mfVal('fp_detail'),
+    prix_ht: Number(String(mfVal('fp_prix')).replace(',','.'))||0,
+    unite: mfVal('fp_unite')||'forfait',
+    categorie: mfVal('fp_cat')||'autre',
+    formule: mfVal('fp_formule')||null,
+    rythme: mfVal('fp_rythme')||null,
+    ordre: Number(mfVal('fp_ordre'))||0,
+    actif: mfCoche('fp_actif')
+  };
+  toast("Enregistrement…");
+  facturationApiCall('prestationMaj',{ id: MF_PREST.id || null, valeurs: valeurs })
+    .then(function(){ toast("Prestation enregistrée ✅"); MF_PREST=null; mfCharger(); })
+    .catch(function(e){ toast((e&&e.message)||"Enregistrement refusé"); });
+}
+
+function mfPrestSupprimer(){
+  if(!MF_PREST || !MF_PREST.id) return;
+  if(!confirm("Retirer « "+(MF_PREST.libelle||'')+" » de ton catalogue ?")) return;
+  facturationApiCall('prestationSuppr',{ id: MF_PREST.id })
+    .then(function(){ toast("Prestation retirée ✅"); MF_PREST=null; mfCharger(); })
+    .catch(function(e){ toast((e&&e.message)||"Suppression refusée"); });
+}
+
+function mfPrestLigne(p){
+  const off = p.actif ? '' : 'opacity:.5;';
+  return '<div class="row" style="cursor:pointer;'+off+'" onclick="mfPrestEditer(\''+esc(String(p.id))+'\')">'+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="font-weight:600">'+esc(p.libelle||'')+(p.actif?'':' · masquée')+'</div>'+
+      (p.detail?'<div class="note" style="font-size:11.5px">'+esc(p.detail)+'</div>':'')+
+    '</div>'+
+    '<div style="font-weight:700;white-space:nowrap">'+mfEur(p.prix_ht)+'</div>'+
+  '</div>';
+}
+
+function renderMaFacturation(){
+  /* --- fiche d'une prestation --- */
+  if(MF_PREST){
+    const p = MF_PREST;
+    app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:520px">'+
+      '<button class="backbtn" style="align-self:flex-start" onclick="mfPrestAnnuler()"><span class="ar">←</span> Ma facturation</button>'+
+      '<div style="text-align:center;margin:8px 0 16px"><h1 style="font-size:22px">'+(p.id?'Modifier la prestation':'Nouvelle prestation')+'</h1></div>'+
+      '<div class="card">'+
+        '<label>Libellé</label><input id="fp_libelle" value="'+esc(p.libelle||'')+'" placeholder="Abonnement Basique — trimestre">'+
+        '<label>Détail (facultatif)</label><input id="fp_detail" value="'+esc(p.detail||'')+'" placeholder="Jusqu\'à 5 membres d\'équipe">'+
+        '<label>Prix HT</label><input id="fp_prix" inputmode="decimal" value="'+esc(String(p.prix_ht||0))+'">'+
+        '<label>Unité</label><input id="fp_unite" value="'+esc(p.unite||'forfait')+'" placeholder="forfait, trimestre, année…">'+
+        '<label>Catégorie</label><select id="fp_cat">'+
+          ['setup','abonnement','autre'].map(function(c){ return '<option value="'+c+'"'+((p.categorie||'autre')===c?' selected':'')+'>'+c+'</option>'; }).join('')+
+        '</select>'+
+        '<label>Formule liée (facultatif)</label><select id="fp_formule">'+
+          [['','—'],['basique','Basique'],['premium','Premium']].map(function(o){ return '<option value="'+o[0]+'"'+((p.formule||'')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+
+        '</select>'+
+        '<label>Rythme (facultatif)</label><select id="fp_rythme">'+
+          [['','—'],['trimestre','Trimestre'],['an','Année']].map(function(o){ return '<option value="'+o[0]+'"'+((p.rythme||'')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+
+        '</select>'+
+        '<label>Ordre d\'affichage</label><input id="fp_ordre" inputmode="numeric" value="'+esc(String(p.ordre||0))+'">'+
+        '<label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="fp_actif" '+(p.actif!==false?'checked':'')+' style="width:auto"> Proposée dans mes factures</label>'+
+      '</div>'+
+      '<button class="btn primary" style="width:100%" onclick="mfPrestEnregistrer()">Enregistrer</button>'+
+      (p.id?'<button class="btn ghost" style="width:100%;margin-top:8px" onclick="mfPrestSupprimer()">Retirer du catalogue</button>':'')+
+    '</div>';
+    return;
+  }
+
+  /* --- chargement / erreur --- */
+  if(MF_ETAT==='chargement' || MF_ETAT==='erreur' || !MF){
+    const msg = MF_ETAT==='erreur'
+      ? '<p class="note" style="color:var(--dang)">'+esc(MF_ERR||'Service indisponible.')+'</p>'+
+        '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="mfCharger()">Réessayer</button>'
+      : '<p class="note">Lecture de tes réglages…</p>';
+    app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:520px">'+
+      '<button class="backbtn" style="align-self:flex-start" onclick="mfRetour()"><span class="ar">←</span> Parc client</button>'+
+      '<div style="text-align:center;margin:8px 0 16px"><h1 style="font-size:22px">Ma facturation</h1></div>'+
+      '<div class="card">'+msg+'</div></div>';
+    return;
+  }
+
+  /* --- l'écran --- */
+  const p = MF;
+  const franchise = !p.tva_assujetti;
+
+  app.innerHTML = '<div class="center-wrap" style="justify-content:flex-start;max-width:560px">'+
+    '<button class="backbtn" style="align-self:flex-start" onclick="mfRetour()"><span class="ar">←</span> Parc client</button>'+
+    '<div style="text-align:center;margin:8px 0 16px">'+
+      '<h1 style="font-size:22px">Ma facturation</h1>'+
+      '<p class="note" style="margin-top:6px">Mes réglages et mon catalogue · Massilia Consulting</p>'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Mon entreprise</h2></div>'+
+      '<p class="note">Ces informations sont recopiées sur chaque facture au moment de l\'émission. Si je les change plus tard, les factures déjà émises ne bougent pas.</p>'+
+      '<label>Raison sociale</label><input id="fa_rs" value="'+esc(p.raison_sociale||'')+'" placeholder="Massilia Consulting">'+
+      '<label>Forme juridique</label><input id="fa_forme" value="'+esc(p.forme_juridique||'')+'" placeholder="Entreprise individuelle">'+
+      '<label>SIREN</label><input id="fa_siren" value="'+esc(p.siren||'')+'" placeholder="905248373">'+
+      '<label>Code APE</label><input id="fa_ape" value="'+esc(p.ape||'')+'" placeholder="70.21Z">'+
+      '<label>Adresse</label><input id="fa_adr" value="'+esc(p.adresse||'')+'">'+
+      '<label>Code postal</label><input id="fa_cp" value="'+esc(p.code_postal||'')+'">'+
+      '<label>Ville</label><input id="fa_ville" value="'+esc(p.ville||'')+'">'+
+      '<label>Email</label><input id="fa_email" value="'+esc(p.email||'')+'">'+
+      '<label>Téléphone</label><input id="fa_tel" value="'+esc(p.telephone||'')+'">'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Paiement</h2></div>'+
+      '<label>IBAN</label><input id="fa_iban" value="'+esc(p.iban||'')+'" placeholder="FR76 …">'+
+      '<label>BIC</label><input id="fa_bic" value="'+esc(p.bic||'')+'">'+
+      '<label>Délai de paiement (jours)</label><input id="fa_delai" inputmode="numeric" value="'+esc(String(p.delai_paiement_jours||30))+'">'+
+      '<p class="note" style="margin-top:8px;font-size:11.5px">Le paiement en ligne (Stripe) n\'est pas branché : la place est réservée en base, il n\'y aura rien à refaire le jour venu.</p>'+
+    '</div>'+
+
+    '<div class="card"'+(franchise?' style="border-color:var(--acc)"':'')+'>'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">TVA</h2></div>'+
+      '<p class="note">Aujourd\'hui je suis en <b>franchise en base</b> (art. 293 B du CGI). Le jour où je dépasse le seuil, je bascule cet interrupteur : les factures futures porteront la TVA, les anciennes resteront telles quelles.</p>'+
+      '<label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="fa_tva" '+(p.tva_assujetti?'checked':'')+' style="width:auto"> Je suis assujetti à la TVA</label>'+
+      '<label>Taux par défaut (%)</label><input id="fa_tva_taux" inputmode="decimal" value="'+esc(String(p.tva_taux||20))+'">'+
+      '<label>Mention en franchise</label><input id="fa_tva_mention" value="'+esc(p.mention_tva||'')+'">'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Ma numérotation</h2></div>'+
+      '<p class="note">Ma suite doit être <b>continue, sans trou et sans doublon</b>. Elle est totalement séparée de celle de mes artisans. Le compteur ne peut jamais redescendre une fois qu\'une facture a été émise.</p>'+
+      '<label>Dernier numéro attribué</label><input id="fa_num_dernier" inputmode="numeric" value="'+esc(String(p.num_dernier||0))+'" oninput="mfNumeroRafraichir()">'+
+      '<p class="note" style="font-size:11.5px;margin-top:4px">Si ma dernière facture Tiime portait le numéro 75, j\'écris 75 : la prochaine sera la 76.</p>'+
+      '<label>Préfixe (facultatif)</label><input id="fa_num_prefixe" value="'+esc(p.num_prefixe||'')+'" oninput="mfNumeroRafraichir()">'+
+      '<label>Nombre de chiffres</label><input id="fa_num_lg" inputmode="numeric" value="'+esc(String(p.num_longueur||6))+'" oninput="mfNumeroRafraichir()">'+
+      '<label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="fa_num_date" '+(p.num_avec_date!==false?'checked':'')+' style="width:auto" onchange="mfNumeroRafraichir()"> Inclure la date d\'émission</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;margin-top:6px"><input type="checkbox" id="fa_num_devis" '+(p.num_partage_devis!==false?'checked':'')+' style="width:auto"> Mes devis partagent la même suite</label>'+
+      '<div style="margin-top:12px;padding:10px;border-radius:10px;background:var(--bg2, rgba(127,127,127,.08))">'+
+        '<div class="note" style="font-size:11.5px">Prochain numéro :</div>'+
+        '<div id="fa_apercu" style="font-weight:700;font-size:15px;margin-top:2px">'+esc(mfApercuNumero())+'</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="card">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Mentions légales</h2></div>'+
+      '<label>Pénalités de retard</label><textarea id="fa_penalites" rows="3">'+esc(p.penalites_texte||'')+'</textarea>'+
+      '<label>Pied de page (facultatif)</label><input id="fa_pied" value="'+esc(p.pied_page||'')+'">'+
+    '</div>'+
+
+    '<button class="btn primary" style="width:100%" onclick="mfEnregistrer()">Enregistrer mes réglages</button>'+
+
+    '<div class="card" style="margin-top:14px">'+
+      '<div class="section-title" style="margin-top:0"><h2 style="font-size:15px">Mon catalogue</h2></div>'+
+      '<p class="note">Mes prestations et leurs prix de départ. <b>Rien n\'est gravé</b> : au moment de facturer, je pioche ici puis je modifie librement le libellé, la quantité ou le prix, exactement comme mes artisans le font avec leurs ouvrages.</p>'+
+      '<div style="margin-top:10px">'+
+        (MF_CAT.length ? MF_CAT.map(mfPrestLigne).join('') : '<p class="note">Catalogue vide.</p>')+
+      '</div>'+
+      '<button class="btn ghost" style="width:100%;margin-top:10px" onclick="mfPrestNouvelle()">+ Ajouter une prestation</button>'+
+    '</div>'+
+
+    '<p class="note" style="text-align:center;margin-top:14px;font-size:11px">Facturation Massilia · lecture et écriture vérifiées par le serveur.</p>'+
+  '</div>';
+}
+
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v267 · 20/07";
+const APP_VERSION="v268 · 21/07";
 
 function devAllowed(user){ if(!user) return false; if(DEV_EMAIL) return (user.email||'').toLowerCase()===DEV_EMAIL.toLowerCase(); return true; }
 function devStart(){
@@ -3816,6 +4088,33 @@ function adminApiCall(action, payload){
   const c = BS._sb.demarrer();
   if(!c) return Promise.reject(new Error("Service indisponible."));
   return c.functions.invoke('admin', {
+    body: Object.assign({action:action}, payload||{})
+  }).then(async function(r){
+    if(r.error){
+      let msg = "Service indisponible.";
+      try{ const j = await r.error.context.json(); if(j && j.erreur) msg = j.erreur; }catch(_){ }
+      throw new Error(msg);
+    }
+    if(r.data && r.data.erreur) throw new Error(r.data.erreur);
+    return r.data;
+  });
+}
+
+/* ==================================================================
+   PASSERELLE MA FACTURATION  (Massilia — editeur uniquement)
+   ------------------------------------------------------------------
+   Jumelle d'adminApiCall, mais vers la fonction serveur « facturation ».
+   Deux portes separees plutot qu'une seule : si un jour je casse quelque
+   chose dans ma facturation, l'administration du parc continue de
+   fonctionner, et l'inverse est vrai aussi.
+   Ici non plus l'application n'a aucun privilege : c'est le serveur qui
+   verifie que l'appelant est l'editeur et qui journalise.
+   ================================================================== */
+function facturationApiCall(action, payload){
+  if(BACKEND!=='supabase') return Promise.reject(new Error("La facturation n'existe que sur la nouvelle base."));
+  const c = BS._sb.demarrer();
+  if(!c) return Promise.reject(new Error("Service indisponible."));
+  return c.functions.invoke('facturation', {
     body: Object.assign({action:action}, payload||{})
   }).then(async function(r){
     if(r.error){

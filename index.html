@@ -873,6 +873,24 @@ const BS = {
     /* Une erreur de base ne doit JAMAIS passer inapercue.
        Avant, elle partait dans la console du navigateur : invisible.
        Maintenant elle s'affiche, et on sait tout de suite quoi corriger. */
+    /* Une ecriture impossible ne doit JAMAIS passer inapercue : l'ecran
+       montre le travail comme enregistre alors qu'il ne l'est pas. On
+       previent une fois par minute — assez pour alerter, pas au point
+       de noyer l'artisan sous les messages. */
+    _dernierCri: 0,
+    pasDEntreprise(quoi){
+      try{
+        console.warn('[Taloche] ' + quoi + " : aucune entreprise rattachee, rien n'est enregistre");
+        const t = Date.now();
+        if(t - (BS._sb._dernierCri || 0) > 60000){
+          BS._sb._dernierCri = t;
+          toast("⚠️ Rien n'est enregistré : ton compte n'est rattaché à aucune entreprise.");
+        }
+        /* et on laisse le bandeau rouge permanent prendre le relais */
+        try{ if(typeof marquerCompteOrphelin === 'function') marquerCompteOrphelin(); }catch(_){ }
+      }catch(_){ }
+    },
+
     souci(quoi, erreur){
       const detail = (erreur && (erreur.message || erreur.hint || erreur.details)) || erreur || '';
       console.warn('[Supabase] ' + quoi, erreur);
@@ -1064,7 +1082,7 @@ const BS = {
     async ecrireChantier(id, valeur){
       const c = BS._sb.demarrer(); if(!c) return;
       if(!valeur){ await c.from('chantiers').delete().eq('id', id); return; }
-      if(!BS._sb.entrepriseId){ console.warn('Chantier : entreprise inconnue'); return; }
+      if(!BS._sb.entrepriseId){ BS._sb.pasDEntreprise('Chantier'); return; }
       /* les photos partent d'abord dans le stockage */
       const propre = await BS._sb.FICHIERS.pourLaBase(valeur, id);
       const ligne = BS._sb.versLigne(propre); ligne.id = id;
@@ -1110,7 +1128,7 @@ const BS = {
 
     async ecrireMessage(canal, id, msg, cle){
       const c = BS._sb.demarrer(); if(!c) return;
-      if(!BS._sb.entrepriseId) return;
+      if(!BS._sb.entrepriseId){ BS._sb.pasDEntreprise('Message'); return; }
       const propre = await BS._sb.FICHIERS.pourLaBase(msg || {}, 'messages');
       const detail = {};
       ['img','audio','doc','docNom','docPoids','deleted','deletedBy','edited'].forEach(function(k){
@@ -1173,7 +1191,7 @@ const BS = {
        repose les cases. Simple, et jamais de doublon. */
     ecrireSemaine(sem, semaine){
       const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
-      if(!BS._sb.entrepriseId) return Promise.resolve();
+      if(!BS._sb.entrepriseId){ BS._sb.pasDEntreprise('Planning'); return Promise.resolve(); }
       /* On efface la semaine puis on la reecrit. Si l'effacement echoue
          sans le dire, la reecriture ajoute des doublons. */
       return c.from('planning').delete().eq('entreprise_id', BS._sb.entrepriseId).eq('semaine', sem)
@@ -1228,7 +1246,7 @@ const BS = {
 
     ecrireNotesFrais(uid, liste){
       const c = BS._sb.demarrer(); if(!c) return Promise.resolve();
-      if(!BS._sb.entrepriseId) return Promise.resolve();
+      if(!BS._sb.entrepriseId){ BS._sb.pasDEntreprise('Note de frais'); return Promise.resolve(); }
       /* Meme precaution : effacer puis reecrire, sans doublon. */
       return c.from('notes_frais').delete().eq('utilisateur_id', uid).then(function(_r){
         if(_r && _r.error){ BS._sb.souci('Effacement des notes de frais', _r.error); throw _r.error; }
@@ -2036,6 +2054,52 @@ function bandeauServeur(){
 
 /* La bibliotheque arrive parfois en retard sur un reseau lent : on
    reessaie une vingtaine de secondes avant de crier au loup. */
+/* ------------------------------------------------------------------
+   COMPTE ORPHELIN : connecte, mais rattache a aucune entreprise.
+   L'application s'ouvrait alors vide et silencieuse, et tout ce qu'on
+   y saisissait etait perdu. On le dit franchement, avec la sortie.
+   ------------------------------------------------------------------ */
+let COMPTE_ORPHELIN = false;
+
+function marquerCompteOrphelin(){
+  if(COMPTE_ORPHELIN) return;
+  COMPTE_ORPHELIN = true;
+  try{ afficherBandeauOrphelin(); }catch(_){ }
+}
+
+function afficherBandeauOrphelin(){
+  if(document.getElementById('bandeau_orphelin')) return;
+  const d = document.createElement('div');
+  d.id = 'bandeau_orphelin';
+  d.style.cssText =
+    "position:fixed;left:0;right:0;bottom:0;z-index:9998;background:#b3121f;color:#fff;"
+    + "font-family:'Sora',sans-serif;font-size:12.5px;line-height:1.45;"
+    + "padding:12px 14px calc(12px + env(safe-area-inset-bottom));"
+    + "box-shadow:0 -3px 14px rgba(0,0,0,.35)";
+  d.innerHTML =
+      '<b style="display:block;font-size:13.5px;margin-bottom:3px">Rien ne s\'enregistre</b>'
+    + "Ton compte est bien connecté, mais il n'est rattaché à aucune entreprise. "
+    + "Tout ce que tu saisis reste sur cet écran et sera perdu.<br>"
+    + '<span style="opacity:.9">Demande son code d\'équipe à ton patron, puis reconnecte-toi.</span>'
+    + '<button onclick="document.getElementById(\'bandeau_orphelin\').remove()" '
+    + 'style="margin-top:9px;width:100%;background:#fff;color:#b3121f;border:0;border-radius:9px;'
+    + 'padding:8px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">J\'ai compris</button>';
+  document.body.appendChild(d);
+}
+
+/* Verification au demarrage : une fois les donnees chargees, si le
+   compte est connecte sans entreprise, on previent tout de suite —
+   sans attendre qu'il ait saisi une matinee de travail. */
+function verifierRattachement(){
+  try{
+    if(BACKEND !== 'supabase') return;
+    if(!AUTH.connecte()) return;
+    if(typeof BS === 'undefined' || !BS._sb) return;
+    if(BS._sb.entrepriseId) return;         /* tout va bien */
+    marquerCompteOrphelin();
+  }catch(_){ }
+}
+
 function verifierServeur(){
   if(BACKEND !== 'supabase') return;
   if(window.supabase){
@@ -2049,6 +2113,10 @@ function verifierServeur(){
 
 function bootSupabase(){
   verifierServeur();
+  /* Une fois les donnees chargees, on verifie que le compte est bien
+     rattache a une entreprise. Sans cela, l'application s'ouvrait vide
+     et tout ce qu'on y saisissait etait perdu sans un mot. */
+  try{ setTimeout(verifierRattachement, 9000); }catch(_){ }
   try{ localStorage.removeItem('cache_config'); }catch(_){ }   /* ancienne cle commune : on la purge */
   CONFIG_DB = lsGet(cleConfig(),{}) || {};
   NOTES_SEEN=lsGet('notes_seen',{})||{}; VEH_SEEN=lsGet('veh_seen',{})||{};
@@ -5382,7 +5450,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v282 · 23/07";
+const APP_VERSION="v283 · 23/07";
 
 function devAllowed(user){
   if(!user) return false;

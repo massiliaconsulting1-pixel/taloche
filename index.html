@@ -1547,9 +1547,19 @@ const AUTH = {
     return firebase.auth().signInWithEmailAndPassword(email, mdp).then(c=>c.user);
   },
 
-  inscription(email, mdp){
+  inscription(email, mdp, infos){
     if(BACKEND==='supabase'){
-      return BS._sb.demarrer().auth.signUp({ email:email, password:mdp })
+      /* Le prenom et le nom voyagent avec le compte. Sans cela, quand
+         Supabase demande une confirmation par email, la session ne
+         s'ouvre pas, le rattachement est reporte — et l'artisan revient
+         plus tard sans que l'application se souvienne de son nom. */
+      const meta = {};
+      if(infos && infos.prenom)      meta.prenom      = String(infos.prenom).trim();
+      if(infos && infos.nom_famille) meta.nom_famille = String(infos.nom_famille).trim();
+      if(meta.prenom || meta.nom_famille){
+        meta.name = [meta.prenom, meta.nom_famille].filter(Boolean).join(' ');
+      }
+      return BS._sb.demarrer().auth.signUp({ email:email, password:mdp, options:{ data: meta } })
         .then(function(r){ if(r.error) throw { code:r.error.message }; return r.data.user; });
     }
     return firebase.auth().createUserWithEmailAndPassword(email, mdp).then(c=>c.user);
@@ -5485,7 +5495,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v285 · 23/07";
+const APP_VERSION="v286 · 23/07";
 
 function devAllowed(user){
   if(!user) return false;
@@ -6493,7 +6503,7 @@ function teamSignupSupabase(){
   if(!email || pass.length<6) return tErr("Email + mot de passe (6 caractères minimum).");
   if(!invite) return tErr("Entre le code d'invitation donné par le patron.");
   tErr('');
-  AUTH.inscription(email, pass)
+  AUTH.inscription(email, pass, { prenom: prenom, nom_famille: nomfam })
     .then(function(){ return BS._sb.demarrer().auth.getSession(); })
     .then(function(r){
       const session = r && r.data && r.data.session;
@@ -6555,15 +6565,35 @@ function renderJoinTeam(){
 }
 /* Le nom deja connu du compte, decoupe en prenom et nom de famille,
    pour pre-remplir l'ecran « Rejoindre ». */
-function joinNomComplet(){
+/* Le prenom et le nom deposes a l'inscription, relus depuis le compte.
+   On ne devine JAMAIS a partir de l'adresse email : « jean.dupont+pro »
+   n'est pas un prenom, et un artisan presse validerait sans corriger —
+   il porterait ce nom devant toute son equipe. Mieux vaut un champ vide
+   qu'un champ faux. */
+function joinInfosCompte(){
   try{
-    let n = (AUTH_USER && (AUTH_USER.nom || AUTH_USER.user_metadata && AUTH_USER.user_metadata.name)) || '';
-    if(!n && AUTH_USER && AUTH_USER.email) n = String(AUTH_USER.email).split('@')[0];
-    return String(n || '').trim();
-  }catch(_){ return ''; }
+    const m = (AUTH_USER && AUTH_USER.user_metadata) || {};
+    return {
+      prenom: String(m.prenom || '').trim(),
+      nom:    String(m.nom_famille || '').trim(),
+      complet: String(m.name || AUTH_USER && AUTH_USER.nom || '').trim()
+    };
+  }catch(_){ return { prenom:'', nom:'', complet:'' }; }
 }
-function joinPrenomDefaut(){ const p = joinNomComplet().split(/\s+/); return p[0] || ''; }
-function joinNomDefaut(){ const p = joinNomComplet().split(/\s+/); return p.slice(1).join(' '); }
+function joinNomComplet(){
+  const i = joinInfosCompte();
+  return [i.prenom, i.nom].filter(Boolean).join(' ') || i.complet;
+}
+function joinPrenomDefaut(){
+  const i = joinInfosCompte();
+  if(i.prenom) return i.prenom;
+  return (i.complet.split(/\s+/)[0]) || '';
+}
+function joinNomDefaut(){
+  const i = joinInfosCompte();
+  if(i.nom) return i.nom;
+  return i.complet.split(/\s+/).slice(1).join(' ');
+}
 
 function joinTeam(){
   const inv=(val('j_invite')||'').toUpperCase(); const e=document.getElementById('j_err');
@@ -6574,7 +6604,12 @@ function joinTeam(){
      le serveur, et le compte restait rattache a aucune entreprise. */
   const prenom = (val('j_prenom') || joinPrenomDefaut() || '').trim();
   const nomfam = (val('j_nomfam') || joinNomDefaut()   || '').trim();
-  const nomComplet = [prenom, nomfam].filter(Boolean).join(' ') || joinNomComplet();
+  if(!prenom){
+    e.style.display='block';
+    e.textContent="Entre ton prénom : c'est ce que ton équipe verra.";
+    return;
+  }
+  const nomComplet = [prenom, nomfam].filter(Boolean).join(' ');
 
   if(BACKEND==='supabase'){
     e.style.display='none';

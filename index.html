@@ -5450,7 +5450,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v283 · 23/07";
+const APP_VERSION="v284 · 23/07";
 
 function devAllowed(user){
   if(!user) return false;
@@ -6507,22 +6507,48 @@ function renderJoinTeam(){
     <div class="card">
       <label>Code d'invitation</label>
       <input id="j_invite" maxlength="6" placeholder="Code équipe" style="text-transform:uppercase;letter-spacing:4px;font-family:'Sora';font-weight:800;text-align:center">
+      <label style="margin-top:12px">Ton prénom</label>
+      <input id="j_prenom" placeholder="Prénom" autocomplete="given-name" value="${esc(joinPrenomDefaut())}">
+      <label>Ton nom</label>
+      <input id="j_nomfam" placeholder="Nom de famille" autocomplete="family-name" value="${esc(joinNomDefaut())}">
+      <p class="note" style="font-size:11px;margin:6px 0 0">Ce que ton équipe verra à côté de tes messages et de tes heures.</p>
       <button class="btn primary" style="width:100%;margin-top:10px" onclick="joinTeam()">Rejoindre</button>
       <div id="j_err" class="err"></div>
       <button class="linkbtn" style="display:block;margin:12px auto 0" onclick="teamSignOut()">Se déconnecter</button>
     </div>
   </div>`;
 }
+/* Le nom deja connu du compte, decoupe en prenom et nom de famille,
+   pour pre-remplir l'ecran « Rejoindre ». */
+function joinNomComplet(){
+  try{
+    let n = (AUTH_USER && (AUTH_USER.nom || AUTH_USER.user_metadata && AUTH_USER.user_metadata.name)) || '';
+    if(!n && AUTH_USER && AUTH_USER.email) n = String(AUTH_USER.email).split('@')[0];
+    return String(n || '').trim();
+  }catch(_){ return ''; }
+}
+function joinPrenomDefaut(){ const p = joinNomComplet().split(/\s+/); return p[0] || ''; }
+function joinNomDefaut(){ const p = joinNomComplet().split(/\s+/); return p.slice(1).join(' '); }
+
 function joinTeam(){
   const inv=(val('j_invite')||'').toUpperCase(); const e=document.getElementById('j_err');
   if(!inv){ e.style.display='block'; e.textContent="Entre le code."; return; }
+
+  /* Ces deux valeurs manquaient : joinTeam les passait sans les avoir
+     definies, l'appel levait « prenom is not defined » avant d'atteindre
+     le serveur, et le compte restait rattache a aucune entreprise. */
+  const prenom = (val('j_prenom') || joinPrenomDefaut() || '').trim();
+  const nomfam = (val('j_nomfam') || joinNomDefaut()   || '').trim();
+  const nomComplet = [prenom, nomfam].filter(Boolean).join(' ') || joinNomComplet();
+
   if(BACKEND==='supabase'){
     e.style.display='none';
-    AUTH.rejoindre(inv, (AUTH_USER&&AUTH_USER.nom)||'', prenom, nomfam).then(function(r){
+    AUTH.rejoindre(inv, nomComplet, prenom, nomfam).then(function(r){
       if(r && r.ok){ toast("Bienvenue dans l'équipe ✅"); rechargerEquipe(); return; }
       e.style.display='block'; e.textContent=messageRejoindre(r);
     }).catch(function(err){
-      e.style.display='block'; e.textContent="Erreur : "+((err&&err.message)||'réessaie');
+      e.style.display='block';
+      e.textContent="Le rattachement a échoué : "+((err&&err.message)||'réessaie dans un instant');
     });
     return;
   }

@@ -1559,7 +1559,17 @@ const AUTH = {
       if(meta.prenom || meta.nom_famille){
         meta.name = [meta.prenom, meta.nom_famille].filter(Boolean).join(' ');
       }
-      return BS._sb.demarrer().auth.signUp({ email:email, password:mdp, options:{ data: meta } })
+      /* Ou revenir apres avoir clique sur le lien de confirmation.
+         Sans cette precision, Supabase renvoie sur son adresse par
+         defaut — l'accueil neutre de taloche.fr — et l'artisan se
+         retrouve devant une page qui n'est pas la sienne. On lui rend
+         exactement l'adresse d'ou il est parti, son espace compris. */
+      let retour = '';
+      try{ retour = location.origin + location.pathname + (location.search || ''); }catch(_){ }
+      return BS._sb.demarrer().auth.signUp({
+          email:email, password:mdp,
+          options: retour ? { data: meta, emailRedirectTo: retour } : { data: meta }
+        })
         .then(function(r){ if(r.error) throw { code:r.error.message }; return r.data.user; });
     }
     return firebase.auth().createUserWithEmailAndPassword(email, mdp).then(c=>c.user);
@@ -1567,7 +1577,13 @@ const AUTH = {
 
   motDePasseOublie(email){
     if(BACKEND==='supabase'){
-      return BS._sb.demarrer().auth.resetPasswordForEmail(email)
+      /* Meme precaution que pour la confirmation : le lien doit ramener
+         l'artisan DANS SON espace, pas sur l'accueil neutre. Un artisan
+         qui a perdu son mot de passe est deja contrarie ; l'envoyer sur
+         une page qui n'est pas la sienne acheve de le perdre. */
+      let retour = '';
+      try{ retour = location.origin + location.pathname + (location.search || ''); }catch(_){ }
+      return BS._sb.demarrer().auth.resetPasswordForEmail(email, retour ? { redirectTo: retour } : undefined)
         .then(function(r){ if(r.error) throw { code:r.error.message }; });
     }
     return firebase.auth().sendPasswordResetEmail(email);
@@ -5495,7 +5511,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v286 · 23/07";
+const APP_VERSION="v287 · 23/07";
 
 function devAllowed(user){
   if(!user) return false;

@@ -881,6 +881,10 @@ const BS = {
     pasDEntreprise(quoi){
       try{
         console.warn('[Taloche] ' + quoi + " : aucune entreprise rattachee, rien n'est enregistre");
+        /* Meme discernement que le bandeau : dans l'espace editeur ou
+           sur l'accueil neutre, cette situation est normale. */
+        if(typeof rattachementNormalementAbsent === 'function'
+           && rattachementNormalementAbsent()) return;
         const t = Date.now();
         if(t - (BS._sb._dernierCri || 0) > 60000){
           BS._sb._dernierCri = t;
@@ -2061,6 +2065,11 @@ function bandeauServeur(){
    ------------------------------------------------------------------ */
 let COMPTE_ORPHELIN = false;
 
+function retirerBandeauOrphelin(){
+  COMPTE_ORPHELIN = false;
+  try{ const el = document.getElementById('bandeau_orphelin'); if(el) el.remove(); }catch(_){ }
+}
+
 function marquerCompteOrphelin(){
   if(COMPTE_ORPHELIN) return;
   COMPTE_ORPHELIN = true;
@@ -2090,12 +2099,38 @@ function afficherBandeauOrphelin(){
 /* Verification au demarrage : une fois les donnees chargees, si le
    compte est connecte sans entreprise, on previent tout de suite —
    sans attendre qu'il ait saisi une matinee de travail. */
+/* Etre connecte sans entreprise n'est PAS toujours une anomalie.
+   Trois cas parfaitement normaux :
+     - le compte editeur, qui n'appartient a aucune entreprise et pilote
+       tout par le serveur ;
+     - l'accueil neutre de taloche.fr, ou aucun artisan n'est designe ;
+     - l'espace client, ou l'on entre par un code, sans compte d'equipe.
+   Sans ces exceptions, le bandeau rouge s'affichait dans l'espace
+   editeur — la ou tout fonctionne. */
+function rattachementNormalementAbsent(){
+  try{
+    /* le compte editeur */
+    if(typeof estCompteEditeur === 'function' && estCompteEditeur()) return true;
+    /* un ecran de l'espace editeur */
+    if(typeof isDevSpace === 'function' && isDevSpace()) return true;
+    /* l'accueil neutre : aucun artisan dans l'adresse */
+    if(typeof slugClient === 'function' && !slugClient()) return true;
+    /* l'espace client */
+    if(typeof SCREEN !== 'undefined' && SCREEN === 'client') return true;
+    if(typeof CLIENT !== 'undefined' && CLIENT) return true;
+    /* le mode fantome : l'entreprise vient de l'artisan observe */
+    if(typeof FANTOME !== 'undefined' && FANTOME) return true;
+  }catch(_){ }
+  return false;
+}
+
 function verifierRattachement(){
   try{
     if(BACKEND !== 'supabase') return;
     if(!AUTH.connecte()) return;
     if(typeof BS === 'undefined' || !BS._sb) return;
-    if(BS._sb.entrepriseId) return;         /* tout va bien */
+    if(BS._sb.entrepriseId) return;              /* tout va bien */
+    if(rattachementNormalementAbsent()) return;  /* cas legitimes */
     marquerCompteOrphelin();
   }catch(_){ }
 }
@@ -5450,7 +5485,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v284 · 23/07";
+const APP_VERSION="v285 · 23/07";
 
 function devAllowed(user){
   if(!user) return false;

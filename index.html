@@ -1915,14 +1915,12 @@ function applyAppIcons(){
        propre orange, a fond perdu. Le logo d'un artisan, lui, reste sur
        fond blanc avec sa marge : c'est le plus sur quand on ignore a quoi
        il ressemble. */
-    /* Le logo d'un artisan est desormais pose sur SA couleur, et non
-       plus sur du blanc : sur l'ecran d'accueil du telephone le fond
-       blanc formait un liser clair tres visible autour de l'icone.
-       On garde une petite marge pour que le logo ne soit pas rogne,
-       quelle que soit sa forme (carre ou tout en longueur). */
-    const opts = (logo===TALOCHE_ICONE)
-      ? {fond:'#f2671f', marge:0}
-      : {fond:teinteApp(), marge:0.08};
+    /* AUCUN bord autour de l'icone, ni blanc ni colore : le logo de
+       l'artisan remplit tout le carre, exactement comme l'icone
+       Taloche. marge:0 declenche le remplissage a fond perdu dans
+       _iconWithBg (le plus grand cote gagne), donc aucune bande de
+       fond ne reste visible sur les bords. */
+    const opts = {fond:teinteApp(), marge:0};
     _iconWithBg(logo,512,(icon)=>{ _iconCache={src:cleIcone,icon:icon}; apply(icon); }, opts);
   }catch(e){}
 }
@@ -5538,7 +5536,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v288 · 24/07";
+const APP_VERSION="v289 · 24/07";
 
 function devAllowed(user){
   if(!user) return false;

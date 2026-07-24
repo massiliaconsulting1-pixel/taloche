@@ -1860,6 +1860,13 @@ function _iconWithBg(src,size,cb,opts){
     img.src=src;
   }catch(_){ cb(src); }
 }
+/* Teinte reellement appliquee a l'ecran (couleur de l'artisan).
+   Sert a la fois au manifeste et au fond de l'icone du telephone. */
+function teinteApp(){
+  let t='#ff8a3d';
+  try{ const v=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim(); if(v) t=v; }catch(_){ }
+  return t;
+}
 function applyAppIcons(){
   const nm=coName();
   // Nom affiché sur l'écran d'accueil du téléphone (espaces conservés)
@@ -1878,8 +1885,20 @@ function applyAppIcons(){
       /* La teinte doit etre celle de l'artisan, pas celle de Taloche :
          c'est elle qu'on voit au lancement et dans la barre du telephone.
          On relit la couleur reellement appliquee a l'ecran. */
-      let teinte='#ff8a3d';
-      try{ const v=getComputedStyle(document.documentElement).getPropertyValue('--acc').trim(); if(v) teinte=v; }catch(_){ }
+      const teinte=teinteApp();
+      /* Le telephone retient le nom du manifeste au moment ou l'on
+         ajoute l'application a l'ecran d'accueil. Au demarrage la fiche
+         de l'artisan n'est pas encore arrivee : coName() repond encore
+         "Taloche". Si on publiait le manifeste tout de suite, le
+         telephone proposerait "Taloche" au lieu du nom de l'entreprise.
+         On attend donc de connaitre le vrai nom avant de le publier. */
+      const slugIci = (typeof slugClient==='function') ? slugClient() : '';
+      const nomPret = !slugIci || !!(CONFIG_DB && CONFIG_DB.nom);
+      if(!nomPret){
+        const ancien=document.querySelector('link[rel="manifest"]');
+        if(ancien){ if(ancien._u) try{ URL.revokeObjectURL(ancien._u); }catch(_){ } ancien.remove(); }
+        return;
+      }
       const man={ name:nm, short_name:nm, display:'standalone', background_color:teinte, theme_color:teinte, start_url:depart, icons:[{src:icon,sizes:'512x512',type:'image/png',purpose:'any'},{src:icon,sizes:'512x512',type:'image/png',purpose:'maskable'},{src:icon,sizes:'192x192',type:'image/png'}] };
       const blob=new Blob([JSON.stringify(man)],{type:'application/manifest+json'});
       const url=URL.createObjectURL(blob);
@@ -1888,15 +1907,23 @@ function applyAppIcons(){
     };
     // Icône dédiée = utilisée telle quelle (pleine, sans bord ajouté). Sinon : logo centré sur fond blanc.
     if(customIcon){ apply(customIcon); return; }
-    if(_iconCache.src===logo && _iconCache.icon){ apply(_iconCache.icon); return; }
+    const cleIcone = logo+'|'+teinteApp();
+    if(_iconCache.src===cleIcone && _iconCache.icon){ apply(_iconCache.icon); return; }
     /* L'icone Taloche est deja un carre plein aux coins arrondis : lui
        ajouter un fond blanc et 6 % de marge faisait apparaitre un bord
        clair sur l'ecran d'accueil du telephone. On la peint donc sur son
        propre orange, a fond perdu. Le logo d'un artisan, lui, reste sur
        fond blanc avec sa marge : c'est le plus sur quand on ignore a quoi
        il ressemble. */
-    const opts = (logo===TALOCHE_ICONE) ? {fond:'#f2671f', marge:0} : {};
-    _iconWithBg(logo,512,(icon)=>{ _iconCache={src:logo,icon:icon}; apply(icon); }, opts);
+    /* Le logo d'un artisan est desormais pose sur SA couleur, et non
+       plus sur du blanc : sur l'ecran d'accueil du telephone le fond
+       blanc formait un liser clair tres visible autour de l'icone.
+       On garde une petite marge pour que le logo ne soit pas rogne,
+       quelle que soit sa forme (carre ou tout en longueur). */
+    const opts = (logo===TALOCHE_ICONE)
+      ? {fond:'#f2671f', marge:0}
+      : {fond:teinteApp(), marge:0.08};
+    _iconWithBg(logo,512,(icon)=>{ _iconCache={src:cleIcone,icon:icon}; apply(icon); }, opts);
   }catch(e){}
 }
 function bigText(){ return lsGet('big_text',0)==1 || lsGet('big_text',0)===true; }
@@ -5511,7 +5538,7 @@ function mfrDocument(id){
 
 /* ====================== ESPACE DÉVELOPPEUR (privé) ====================== */
 const DEV_CODE="23112003";
-const APP_VERSION="v287 · 23/07";
+const APP_VERSION="v288 · 24/07";
 
 function devAllowed(user){
   if(!user) return false;
@@ -13790,7 +13817,7 @@ function saveCroppedLogo(){
 function saveCroppedIcon(){
   if(!_crop) return; const OUT=512, R=OUT/240;
   const cv=document.createElement('canvas'); cv.width=OUT; cv.height=OUT; const ctx=cv.getContext('2d');
-  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,OUT,OUT);
+  ctx.fillStyle=teinteApp(); ctx.fillRect(0,0,OUT,OUT);
   ctx.drawImage(_crop.img, _crop.x*R, _crop.y*R, _crop.img.naturalWidth*_crop.scale*R, _crop.img.naturalHeight*_crop.scale*R);
   CONFIG_DB.appIcon=cv.toDataURL('image/png'); saveConfigDB(); _iconCache={src:null,icon:null}; try{applyAppIcons();}catch(_){ }
   _crop=null; closeModal(); toast("Icône mise à jour ✅"); if(SCREEN==='dev') renderDev(); else render();
